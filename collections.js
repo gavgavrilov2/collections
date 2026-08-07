@@ -5,6 +5,18 @@
   var STORAGE_KEY = 'my_collections';
   var TIME_KEY = 'my_collections_time';
   var SORT_KEY = 'my_collections_sort';
+  var SCALE_KEY = 'my_collections_scale';
+
+  var SCALE_LEVELS = [
+    { id: 'xs',  label: 'XS',  factor: 0.65 },
+    { id: 's',   label: 'S',   factor: 0.8  },
+    { id: 'm',   label: 'M',   factor: 1.0  },
+    { id: 'l',   label: 'L',   factor: 1.25 },
+    { id: 'xl',  label: 'XL',  factor: 1.5  }
+  ];
+  var DEFAULT_SCALE = 'm';
+  var BASE_CARD_W = 160;
+  var BASE_CARD_H = 240;
 
   var DEFAULT_COLLECTIONS = {
     watched:     { name: 'Посмотрел',       icon: '👁', movies: [], isDefault: true },
@@ -137,6 +149,19 @@
 
   function getSortId() { return Lampa.Storage.get(SORT_KEY, 'date_desc'); }
 
+  function getScaleId() { return Lampa.Storage.get(SCALE_KEY, DEFAULT_SCALE); }
+  function getScaleFactor() {
+    var id = getScaleId();
+    for (var i = 0; i < SCALE_LEVELS.length; i++) {
+      if (SCALE_LEVELS[i].id === id) return SCALE_LEVELS[i].factor;
+    }
+    return 1.0;
+  }
+  function getCardSize() {
+    var f = getScaleFactor();
+    return { w: Math.round(BASE_CARD_W * f), h: Math.round(BASE_CARD_H * f) };
+  }
+
   function posterUrl(movie) {
     var p = movie.poster_path || '';
     if (p && !p.startsWith('http')) p = 'https://image.tmdb.org/t/p/w300' + p;
@@ -200,14 +225,21 @@
     + '.mc-row::-webkit-scrollbar { display:none; }'
 
     /* Movie card */
-    + '.mc-card { flex-shrink:0; width:160px; cursor:pointer; position:relative; transition:transform .15s; }'
+    + '.mc-card { flex-shrink:0; cursor:pointer; position:relative; transition:transform .15s; }'
     + '.mc-card:hover,.mc-card.focus { transform:scale(1.04); }'
-    + '.mc-card__poster { width:160px; height:240px; border-radius:8px; background-size:cover; background-position:center top; background-color:rgba(255,255,255,0.06); position:relative; overflow:hidden; }'
+    + '.mc-card__poster { border-radius:8px; background-size:cover; background-position:center top; background-color:rgba(255,255,255,0.06); position:relative; overflow:hidden; }'
     + '.mc-card__badge { position:absolute; top:8px; right:8px; background:rgba(0,0,0,0.75); color:#f5c518; font-size:12px; font-weight:700; padding:3px 7px; border-radius:4px; }'
     + '.mc-card__icons { position:absolute; bottom:8px; left:8px; display:flex; gap:4px; }'
     + '.mc-card__icon { width:24px; height:24px; border-radius:4px; background:rgba(0,0,0,0.6); display:flex; align-items:center; justify-content:center; font-size:12px; }'
     + '.mc-card__title { margin-top:8px; font-size:13px; color:#fff; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }'
     + '.mc-card__year { margin-top:2px; font-size:12px; color:rgba(255,255,255,0.4); }'
+
+    /* Scale row */
+    + '.mc-scale { display:flex; gap:6px; padding:8px 20px; align-items:center; }'
+    + '.mc-scale__label { font-size:13px; color:rgba(255,255,255,0.4); margin-right:4px; white-space:nowrap; }'
+    + '.mc-scale__btn { flex-shrink:0; width:40px; height:36px; border-radius:6px; background:rgba(255,255,255,0.06); color:rgba(255,255,255,0.5); font-size:13px; font-weight:600; cursor:pointer; display:flex; align-items:center; justify-content:center; }'
+    + '.mc-scale__btn:hover,.mc-scale__btn.focus { background:rgba(255,255,255,0.12); color:#fff; }'
+    + '.mc-scale__btn.active { background:rgba(59,213,116,0.15); color:#3bd574; }'
 
     /* Sort row */
     + '.mc-sort { display:flex; gap:8px; padding:12px 20px; overflow-x:auto; }'
@@ -239,7 +271,7 @@
     injectStyles();
 
     Lampa.Manifest.plugins = {
-      type: 'video', version: '1.4.0', name: PLUGIN_NAME,
+      type: 'video', version: '1.5.0', name: PLUGIN_NAME,
       description: 'Закладки, коллекции и таймер просмотра',
       component: 'my_collections',
       onContextMenu: function(){ return { name: PLUGIN_NAME, description: '' }; },
@@ -465,6 +497,18 @@
     }
     scroll.append(sortEl);
 
+    /* Scale */
+    var scaleId = getScaleId();
+    var scaleEl = $('<div class="mc-scale"></div>');
+    scaleEl.append($('<div class="mc-scale__label">Размер:</div>'));
+    for (var sc = 0; sc < SCALE_LEVELS.length; sc++) {
+      var sl = SCALE_LEVELS[sc];
+      var scaleBtn = $('<div class="mc-scale__btn' + (sl.id === scaleId ? ' active' : '') + '" data-scale="' + sl.id + '">' + sl.label + '</div>');
+      scaleBtn.data('sid', sl.id);
+      scaleEl.append(scaleBtn);
+    }
+    scroll.append(scaleEl);
+
     /* Sections container */
     var sectionsEl = $('<div></div>');
     scroll.append(sectionsEl);
@@ -536,6 +580,7 @@
       var url = posterUrl(m);
       var year = (m.release_date || '').substring(0, 4);
       var rating = (m.vote_average || 0).toFixed(1);
+      var sz = getCardSize();
       var icons = '';
       if (isInCollection('watched', m.id)) icons += '<div class="mc-card__icon">👁</div>';
       if (isInCollection('favorite', m.id)) icons += '<div class="mc-card__icon">❤️</div>';
@@ -544,7 +589,7 @@
 
       return $(
         '<div class="mc-card selector" data-mid="' + m.id + '" data-col="' + collectionId + '">' +
-          '<div class="mc-card__poster" style="background-image:url(' + (url || '') + ')">' +
+          '<div class="mc-card__poster" style="width:' + sz.w + 'px;height:' + sz.h + 'px;background-image:url(' + (url || '') + ')">' +
             (m.vote_average > 0 ? '<div class="mc-card__badge">' + rating + '</div>' : '') +
             (icons ? '<div class="mc-card__icons">' + icons + '</div>' : '') +
           '</div>' +
@@ -593,6 +638,15 @@
       var id = $(this).attr('data-sort');
       Lampa.Storage.set(SORT_KEY, id);
       sortEl.find('.mc-sort__btn').removeClass('active');
+      $(this).addClass('active');
+      renderSections();
+      try { scroll.update(); } catch(e) {}
+    });
+
+    scroll.render().on('hover:enter', '.mc-scale__btn[data-scale]', function() {
+      var sid = $(this).attr('data-scale');
+      Lampa.Storage.set(SCALE_KEY, sid);
+      scaleEl.find('.mc-scale__btn').removeClass('active');
       $(this).addClass('active');
       renderSections();
       try { scroll.update(); } catch(e) {}
@@ -699,9 +753,10 @@
       var url = posterUrl(m);
       var year = (m.release_date || '').substring(0, 4);
       var rating = (m.vote_average || 0).toFixed(1);
+      var sz = getCardSize();
       return $(
         '<div class="mc-card selector" data-mid="' + m.id + '" data-col="' + colId + '">' +
-          '<div class="mc-card__poster" style="background-image:url(' + (url || '') + ')">' +
+          '<div class="mc-card__poster" style="width:' + sz.w + 'px;height:' + sz.h + 'px;background-image:url(' + (url || '') + ')">' +
             (m.vote_average > 0 ? '<div class="mc-card__badge">' + rating + '</div>' : '') +
           '</div>' +
           '<div class="mc-card__title">' + (m.title || '') + '</div>' +
