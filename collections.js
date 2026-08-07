@@ -630,36 +630,30 @@
         if (isInCollection(keys[i], movie.id)) { inAny = true; break; }
       }
 
-      var btn = document.createElement('div');
-      btn.className = 'full-start__button selector my-collections-btn';
-      btn.innerHTML =
+      var btn = $('<div class="full-start__button selector my-collections-btn">' +
         '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">' +
           '<path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/>' +
         '</svg>' +
-        '<span>Коллекции' + (inAny ? ' ✓' : '') + '</span>';
+        '<span>' + PLUGIN_NAME + (inAny ? ' ✓' : '') + '</span>' +
+      '</div>');
 
-      btn.addEventListener('hover:enter', function() {
+      btn.on('hover:enter click', function() {
         showAddToCollectionDialog(movie);
       });
 
       var targets = [
-        '.full-start__button:last',
-        '.view--online .online-prestige:last',
+        '.full-start__buttons .full-start__button:last',
+        '.view--torrent',
+        '.view--online',
         '.full-start__buttons'
       ];
 
-      var inserted = false;
       for (var t = 0; t < targets.length; t++) {
-        var el = render.querySelector(targets[t]);
-        if (el) {
-          if (targets[t].indexOf(':last') !== -1) {
-            el.parentNode.insertBefore(btn, el.nextSibling);
-          } else {
-            el.appendChild(btn);
-          }
-          inserted = true;
+        var el = render.find(targets[t]);
+        if (el.length) {
+          el.first().after(btn);
           _cardButtonAdded = true;
-          break;
+          return;
         }
       }
     } catch (e) {}
