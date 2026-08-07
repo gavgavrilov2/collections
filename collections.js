@@ -21,35 +21,40 @@
     { id: 'alpha_asc',   name: 'По алфавиту' }
   ];
 
+  var _collectionsCache = null;
+
   function getCollections() {
+    if (_collectionsCache) return _collectionsCache;
+
     try {
       var raw = localStorage.getItem(STORAGE_KEY);
       if (raw) {
         var data = JSON.parse(raw);
         if (data && typeof data === 'object' && data.watched) {
-          console.log('[MC] Loaded from localStorage, keys:', Object.keys(data));
+          _collectionsCache = data;
           return data;
         }
       }
-    } catch(e) { console.log('[MC] localStorage read error:', e); }
+    } catch(e) {}
 
     try {
       var data2 = Lampa.Storage.get(STORAGE_KEY);
       if (data2 && typeof data2 === 'object' && data2.watched) {
-        console.log('[MC] Loaded from Lampa.Storage, keys:', Object.keys(data2));
         localStorage.setItem(STORAGE_KEY, JSON.stringify(data2));
+        _collectionsCache = data2;
         return data2;
       }
-    } catch(e) { console.log('[MC] Lampa.Storage read error:', e); }
+    } catch(e) {}
 
-    console.log('[MC] Using default collections');
     var data = JSON.parse(JSON.stringify(DEFAULT_COLLECTIONS));
     saveCollections(data);
+    _collectionsCache = data;
     return data;
   }
 
   function saveCollections(data) {
-    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); } catch(e) { console.log('[MC] localStorage write error:', e); }
+    _collectionsCache = data;
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); } catch(e) {}
     try { Lampa.Storage.set(STORAGE_KEY, data); } catch(e) {}
   }
 
@@ -65,9 +70,9 @@
   function addToCollection(collectionId, movie) {
     var collections = getCollections();
     var col = collections[collectionId];
-    if (!col) { console.log('[MC] addToCollection: collection not found:', collectionId); return false; }
+    if (!col) return false;
     for (var i = 0; i < col.movies.length; i++) {
-      if (col.movies[i].id === movie.id) { console.log('[MC] addToCollection: already exists'); return false; }
+      if (col.movies[i].id === movie.id) return false;
     }
     col.movies.push({
       id: movie.id || 0,
@@ -84,10 +89,7 @@
       added_at: Date.now(),
       source: movie.source || 'tmdb'
     });
-    console.log('[MC] addToCollection: added "' + movie.title + '" to', collectionId, ', total:', col.movies.length);
     saveCollections(collections);
-    var verify = getCollections();
-    console.log('[MC] addToCollection: verify read back, movies in', collectionId, ':', verify[collectionId] ? verify[collectionId].movies.length : 'N/A');
     return true;
   }
 
@@ -237,7 +239,7 @@
     injectStyles();
 
     Lampa.Manifest.plugins = {
-      type: 'video', version: '1.2.0', name: PLUGIN_NAME,
+      type: 'video', version: '1.4.0', name: PLUGIN_NAME,
       description: 'Закладки, коллекции и таймер просмотра',
       component: 'my_collections',
       onContextMenu: function(){ return { name: PLUGIN_NAME, description: '' }; },
@@ -619,6 +621,11 @@
     });
 
     setTimeout(function() {
+      var active = Lampa.Activity.active();
+      if (active && active.activity && active.activity.render) {
+        var render = active.activity.render();
+        render.empty().append(scroll.render());
+      }
       Lampa.Controller.toggle('mc_main');
       try { scroll.update(); } catch(e) {}
     }, 300);
@@ -761,6 +768,11 @@
     });
 
     setTimeout(function() {
+      var active = Lampa.Activity.active();
+      if (active && active.activity && active.activity.render) {
+        var render = active.activity.render();
+        render.empty().append(scroll.render());
+      }
       Lampa.Controller.toggle('mc_movies');
       try { scroll.update(); } catch(e) {}
     }, 300);
