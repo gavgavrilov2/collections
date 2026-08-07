@@ -26,19 +26,31 @@
       var raw = localStorage.getItem(STORAGE_KEY);
       if (raw) {
         var data = JSON.parse(raw);
-        if (data && typeof data === 'object' && data.watched) return data;
+        if (data && typeof data === 'object' && data.watched) {
+          console.log('[MC] Loaded from localStorage, keys:', Object.keys(data));
+          return data;
+        }
       }
-    } catch(e) {}
+    } catch(e) { console.log('[MC] localStorage read error:', e); }
+
+    try {
+      var data2 = Lampa.Storage.get(STORAGE_KEY);
+      if (data2 && typeof data2 === 'object' && data2.watched) {
+        console.log('[MC] Loaded from Lampa.Storage, keys:', Object.keys(data2));
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(data2));
+        return data2;
+      }
+    } catch(e) { console.log('[MC] Lampa.Storage read error:', e); }
+
+    console.log('[MC] Using default collections');
     var data = JSON.parse(JSON.stringify(DEFAULT_COLLECTIONS));
     saveCollections(data);
     return data;
   }
 
   function saveCollections(data) {
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-    } catch(e) {}
-    try { Lampa.Storage.set(STORAGE_KEY, data); } catch(e2) {}
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); } catch(e) { console.log('[MC] localStorage write error:', e); }
+    try { Lampa.Storage.set(STORAGE_KEY, data); } catch(e) {}
   }
 
   function isInCollection(collectionId, movieId) {
@@ -53,9 +65,9 @@
   function addToCollection(collectionId, movie) {
     var collections = getCollections();
     var col = collections[collectionId];
-    if (!col) return false;
+    if (!col) { console.log('[MC] addToCollection: collection not found:', collectionId); return false; }
     for (var i = 0; i < col.movies.length; i++) {
-      if (col.movies[i].id === movie.id) return false;
+      if (col.movies[i].id === movie.id) { console.log('[MC] addToCollection: already exists'); return false; }
     }
     col.movies.push({
       id: movie.id || 0,
@@ -72,7 +84,10 @@
       added_at: Date.now(),
       source: movie.source || 'tmdb'
     });
+    console.log('[MC] addToCollection: added "' + movie.title + '" to', collectionId, ', total:', col.movies.length);
     saveCollections(collections);
+    var verify = getCollections();
+    console.log('[MC] addToCollection: verify read back, movies in', collectionId, ':', verify[collectionId] ? verify[collectionId].movies.length : 'N/A');
     return true;
   }
 
@@ -381,9 +396,9 @@
   }
 
   function refreshCardButton() {
-    _lastFullCard = null;
-    setTimeout(tryAddCardButton, 500);
-    setTimeout(tryAddCardButton, 1500);
+    setTimeout(tryAddCardButton, 300);
+    setTimeout(tryAddCardButton, 1000);
+    setTimeout(tryAddCardButton, 2000);
   }
 
   // ========== Main Page ==========
@@ -821,7 +836,22 @@
 
   // ========== Card Button ==========
 
-  var _lastFullCard = null;
+  function getButtonStyle(inAny) {
+    if (inAny) {
+      return 'display:inline-flex;align-items:center;gap:8px;cursor:pointer;padding:8px 16px;border-radius:8px;background:rgba(255,255,255,0.85);color:#111;margin:4px;';
+    }
+    return 'display:inline-flex;align-items:center;gap:8px;cursor:pointer;padding:8px 16px;border-radius:8px;background:transparent;border:1px solid rgba(255,255,255,0.2);color:rgba(255,255,255,0.5);margin:4px;';
+  }
+
+  function isMovieInAnyCollection(movieId) {
+    var cols = getCollections();
+    var k = Object.keys(cols);
+    for (var i = 0; i < k.length; i++) {
+      if (isInCollection(k[i], movieId)) return true;
+    }
+    return false;
+  }
+
   function tryAddCardButton() {
     try {
       var active = Lampa.Activity.active();
@@ -829,24 +859,21 @@
 
       var movie = active.card || (active.data && active.data.movie);
       if (!movie || !movie.id) return;
-      if (_lastFullCard && _lastFullCard.id === movie.id) return;
 
       var render = active.activity.render();
       if (!render || !render.length) return;
-      if (render.find('.my-collections-btn').length) { _lastFullCard = movie; return; }
 
-      console.log('[MC] Trying to add button for:', movie.title, 'render children:', render.children().length);
+      var existing = render.find('.my-collections-btn');
+      var inAny = isMovieInAnyCollection(movie.id);
 
-      var inAny = false;
-      var cols = getCollections();
-      var k = Object.keys(cols);
-      for (var i = 0; i < k.length; i++) {
-        if (isInCollection(k[i], movie.id)) { inAny = true; break; }
+      if (existing.length) {
+        existing.attr('style', getButtonStyle(inAny));
+        existing.find('.mc-btn-text').text(PLUGIN_NAME + (inAny ? ' ✓' : ''));
+        return;
       }
 
-      var btnHtml = '<div class="full-start__button selector my-collections-btn" style="display:inline-flex;align-items:center;gap:8px;cursor:pointer;padding:8px 16px;border-radius:8px;background:rgba(255,255,255,0.1);margin:4px;"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg><span>' + PLUGIN_NAME + (inAny ? ' ✓' : '') + '</span></div>';
+      var btn = $('<div class="full-start__button selector my-collections-btn" style="' + getButtonStyle(inAny) + '"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg><span class="mc-btn-text">' + PLUGIN_NAME + (inAny ? ' ✓' : '') + '</span></div>');
 
-      var btn = $(btnHtml);
       btn.on('hover:enter click', function() {
         showAddToCollectionDialog(movie);
       });
@@ -870,7 +897,6 @@
         if (el.length) {
           el.last().after(btn);
           inserted = true;
-          console.log('[MC] Inserted after:', targets[t]);
           break;
         }
       }
@@ -882,22 +908,9 @@
         if (anyBtn.length) {
           anyBtn.parent().append(btn);
           inserted = true;
-          console.log('[MC] Inserted after torrent/online button');
         }
       }
-
-      if (!inserted) {
-        var desc = render.find('.full-start__text, .full__description, .detail-page__text');
-        if (desc.length) {
-          desc.first().after(btn);
-          inserted = true;
-          console.log('[MC] Inserted after description');
-        }
-      }
-
-      if (inserted) _lastFullCard = movie;
-      else console.log('[MC] Could not find insertion point');
-    } catch(e) { console.log('[MC] Error:', e); }
+    } catch(e) {}
   }
 
   // ========== Init ==========
