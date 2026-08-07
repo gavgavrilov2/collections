@@ -2,9 +2,21 @@
   'use strict';
 
   var PLUGIN_NAME = 'Мои Коллекции';
-  var STORAGE_KEY = 'my_collections_v2';
-  var TIME_KEY = 'my_collections_time_v2';
-  var SORT_KEY = 'my_collections_sort_v2';
+  var STORAGE_KEY = 'my_collections';
+  var TIME_KEY = 'my_collections_time';
+  var SORT_KEY = 'my_collections_sort';
+  var SCALE_KEY = 'my_collections_scale';
+
+  var SCALE_LEVELS = [
+    { id: 'xs',  label: 'XS',  factor: 0.65 },
+    { id: 's',   label: 'S',   factor: 0.8  },
+    { id: 'm',   label: 'M',   factor: 1.0  },
+    { id: 'l',   label: 'L',   factor: 1.25 },
+    { id: 'xl',  label: 'XL',  factor: 1.5  }
+  ];
+  var DEFAULT_SCALE = 'm';
+  var BASE_CARD_W = 160;
+  var BASE_CARD_H = 240;
 
   var DEFAULT_COLLECTIONS = {
     watched:     { name: 'Посмотрел',       icon: '👁', movies: [], isDefault: true },
@@ -21,36 +33,46 @@
     { id: 'alpha_asc',   name: 'По алфавиту' }
   ];
 
-  // ========== Storage Helpers ==========
+  var _collectionsCache = null;
 
   function getCollections() {
+    if (_collectionsCache) return _collectionsCache;
+
     try {
-      var data = Lampa.Storage.get(STORAGE_KEY);
-      if (!data || typeof data !== 'object' || Array.isArray(data)) {
-        data = JSON.parse(JSON.stringify(DEFAULT_COLLECTIONS));
-        saveCollections(data);
+      var raw = localStorage.getItem(STORAGE_KEY);
+      if (raw) {
+        var data = JSON.parse(raw);
+        if (data && typeof data === 'object' && data.watched) {
+          _collectionsCache = data;
+          return data;
+        }
       }
-      var defaults = Object.keys(DEFAULT_COLLECTIONS);
-      for (var i = 0; i < defaults.length; i++) {
-        var k = defaults[i];
-        if (!data[k]) data[k] = JSON.parse(JSON.stringify(DEFAULT_COLLECTIONS[k]));
+    } catch(e) {}
+
+    try {
+      var data2 = Lampa.Storage.get(STORAGE_KEY);
+      if (data2 && typeof data2 === 'object' && data2.watched) {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(data2));
+        _collectionsCache = data2;
+        return data2;
       }
-      return data;
-    } catch (e) {
-      var fresh = JSON.parse(JSON.stringify(DEFAULT_COLLECTIONS));
-      saveCollections(fresh);
-      return fresh;
-    }
+    } catch(e) {}
+
+    var data = JSON.parse(JSON.stringify(DEFAULT_COLLECTIONS));
+    saveCollections(data);
+    _collectionsCache = data;
+    return data;
   }
 
   function saveCollections(data) {
-    try { Lampa.Storage.set(STORAGE_KEY, data); } catch (e) {}
+    _collectionsCache = data;
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); } catch(e) {}
+    try { Lampa.Storage.set(STORAGE_KEY, data); } catch(e) {}
   }
 
   function isInCollection(collectionId, movieId) {
-    if (!movieId) return false;
     var col = getCollections()[collectionId];
-    if (!col || !Array.isArray(col.movies)) return false;
+    if (!col || !col.movies) return false;
     for (var i = 0; i < col.movies.length; i++) {
       if (col.movies[i].id === movieId) return true;
     }
@@ -58,22 +80,15 @@
   }
 
   function addToCollection(collectionId, movie) {
-    if (!movie || !movie.id) {
-      console.warn('[MC] invalid movie', movie);
-      return false;
-    }
     var collections = getCollections();
     var col = collections[collectionId];
     if (!col) return false;
-    if (!Array.isArray(col.movies)) col.movies = [];
-
     for (var i = 0; i < col.movies.length; i++) {
       if (col.movies[i].id === movie.id) return false;
     }
-
     col.movies.push({
-      id: movie.id,
-      title: movie.title || movie.name || 'Без названия',
+      id: movie.id || 0,
+      title: movie.title || movie.name || '',
       original_title: movie.original_title || '',
       poster_path: movie.poster_path || '',
       backdrop_path: movie.backdrop_path || '',
@@ -86,45 +101,39 @@
       added_at: Date.now(),
       source: movie.source || 'tmdb'
     });
-
     saveCollections(collections);
     return true;
   }
 
   function removeFromCollection(collectionId, movieId) {
-    if (!movieId) return false;
     var collections = getCollections();
     var col = collections[collectionId];
-    if (!col || !Array.isArray(col.movies)) return false;
-    var before = col.movies.length;
-    col.movies = col.movies.filter(function(m) { return m.id !== movieId; });
-    var removed = col.movies.length < before;
-    if (removed) saveCollections(collections);
-    return removed;
+    if (!col) return false;
+    var found = false;
+    col.movies = col.movies.filter(function(m) { if (m.id === movieId) { found = true; return false; } return true; });
+    if (found) saveCollections(collections);
+    return found;
   }
 
   function deleteCollection(collectionId) {
     var collections = getCollections();
     if (collections[collectionId] && collections[collectionId].isDefault) return false;
-    if (!collections[collectionId]) return false;
     delete collections[collectionId];
     saveCollections(collections);
     return true;
   }
 
   function getWatchTime() { return Lampa.Storage.get(TIME_KEY, 0) || 0; }
-  function addWatchTime(s) { Lampa.Storage.set(TIME_KEY, getWatchTime() + (s || 0)); }
+  function addWatchTime(s) { Lampa.Storage.set(TIME_KEY, getWatchTime() + s); }
 
   function formatTime(sec) {
     if (!sec || sec < 1) return '0 мин';
-    var d = Math.floor(sec / 86400);
-    var h = Math.floor((sec % 86400) / 3600);
-    var m = Math.floor((sec % 3600) / 60);
-    var parts = [];
-    if (d > 0) parts.push(d + ' дн');
-    if (h > 0) parts.push(h + ' ч');
-    if (m > 0) parts.push(m + ' мин');
-    return parts.join(' ') || '0 мин';
+    var d = Math.floor(sec / 86400), h = Math.floor((sec % 86400) / 3600), m = Math.floor((sec % 3600) / 60);
+    var p = [];
+    if (d > 0) p.push(d + ' дн');
+    if (h > 0) p.push(h + ' ч');
+    if (m > 0) p.push(m + ' мин');
+    return p.join(' ') || '0 мин';
   }
 
   function sortMovies(movies, sortId) {
@@ -140,20 +149,33 @@
 
   function getSortId() { return Lampa.Storage.get(SORT_KEY, 'date_desc'); }
 
+  function getScaleId() { return Lampa.Storage.get(SCALE_KEY, DEFAULT_SCALE); }
+  function getScaleFactor() {
+    var id = getScaleId();
+    for (var i = 0; i < SCALE_LEVELS.length; i++) {
+      if (SCALE_LEVELS[i].id === id) return SCALE_LEVELS[i].factor;
+    }
+    return 1.0;
+  }
+  function getCardSize() {
+    var f = getScaleFactor();
+    return { w: Math.round(BASE_CARD_W * f), h: Math.round(BASE_CARD_H * f) };
+  }
+
   function posterUrl(movie) {
     var p = movie.poster_path || '';
-    if (p && p.indexOf('http') !== 0) p = 'https://image.tmdb.org/t/p/w300' + p;
+    if (p && !p.startsWith('http')) p = 'https://image.tmdb.org/t/p/w300' + p;
     return p;
   }
 
-  function isMovieInAnyCollection(movieId) {
-    if (!movieId) return false;
-    var cols = getCollections();
-    var keys = Object.keys(cols);
-    for (var i = 0; i < keys.length; i++) {
-      if (isInCollection(keys[i], movieId)) return true;
+  function splitByType(movies) {
+    var films = [], series = [];
+    for (var i = 0; i < movies.length; i++) {
+      var m = movies[i];
+      if (m.media_type === 'tv' || (m.genre_ids && m.genre_ids.indexOf(18) >= 0)) series.push(m);
+      else films.push(m);
     }
-    return false;
+    return { films: films, series: series };
   }
 
   // ========== CSS ==========
@@ -161,69 +183,79 @@
   function injectStyles() {
     if (document.getElementById('my-collections-styles')) return;
     var css = ''
-      + '.mc-page { padding:0 0 60px 0; }'
-      + '.mc-header { display:flex; align-items:center; padding:16px 20px 12px; gap:12px; }'
-      + '.mc-header__back { font-size:24px; color:#fff; cursor:pointer; width:40px; height:40px; display:flex; align-items:center; justify-content:center; border-radius:8px; background:rgba(255,255,255,0.06); }'
-      + '.mc-header__back:hover,.mc-header__back.focus { background:rgba(255,255,255,0.12); }'
-      + '.mc-header__title { font-size:28px; font-weight:700; color:#fff; flex:1; }'
-      + '.mc-header__time { font-size:14px; color:#3bd574; background:rgba(59,213,116,0.1); padding:6px 12px; border-radius:8px; white-space:nowrap; }'
 
-      + '.mc-tabs { display:flex; gap:10px; padding:0 20px 16px; overflow-x:auto; }'
-      + '.mc-tabs::-webkit-scrollbar { display:none; }'
-      + '.mc-tab { flex-shrink:0; padding:12px 20px; border-radius:10px; background:rgba(255,255,255,0.06); border:2px solid transparent; cursor:pointer; transition:all .15s; min-width:120px; text-align:center; }'
-      + '.mc-tab:hover,.mc-tab.focus { background:rgba(255,255,255,0.1); border-color:rgba(255,255,255,0.1); }'
-      + '.mc-tab.active { background:rgba(255,255,255,0.08); border-color:rgba(255,255,255,0.15); }'
-      + '.mc-tab__name { font-size:14px; color:rgba(255,255,255,0.6); margin-bottom:4px; }'
-      + '.mc-tab.active .mc-tab__name { color:#fff; }'
-      + '.mc-tab__count { font-size:22px; font-weight:700; color:#fff; }'
-      + '.mc-tab__max { font-size:12px; color:rgba(255,255,255,0.3); }'
+    /* Header */
+    + '.mc-page { padding:0 0 60px 0; }'
+    + '.mc-header { display:flex; align-items:center; padding:16px 20px 12px; gap:12px; }'
+    + '.mc-header__back { font-size:24px; color:#fff; cursor:pointer; width:40px; height:40px; display:flex; align-items:center; justify-content:center; border-radius:8px; background:rgba(255,255,255,0.06); }'
+    + '.mc-header__back:hover,.mc-header__back.focus { background:rgba(255,255,255,0.12); }'
+    + '.mc-header__title { font-size:28px; font-weight:700; color:#fff; flex:1; }'
+    + '.mc-header__time { font-size:14px; color:#3bd574; background:rgba(59,213,116,0.1); padding:6px 12px; border-radius:8px; white-space:nowrap; }'
 
-      + '.mc-section { margin-bottom:20px; }'
-      + '.mc-section__head { display:flex; align-items:center; padding:8px 20px 12px; gap:8px; }'
-      + '.mc-section__title { font-size:20px; font-weight:700; color:#fff; flex:1; }'
-      + '.mc-section__more { font-size:13px; color:#3bd574; padding:6px 14px; border-radius:6px; background:rgba(59,213,116,0.1); cursor:pointer; }'
-      + '.mc-section__more:hover,.mc-section__more.focus { background:rgba(59,213,116,0.2); }'
+    /* Tabs */
+    + '.mc-tabs { display:flex; gap:10px; padding:0 20px 16px; overflow-x:auto; }'
+    + '.mc-tabs::-webkit-scrollbar { display:none; }'
+    + '.mc-tab { flex-shrink:0; padding:12px 20px; border-radius:10px; background:rgba(255,255,255,0.06); border:2px solid transparent; cursor:pointer; transition:all .15s; min-width:120px; text-align:center; }'
+    + '.mc-tab:hover,.mc-tab.focus { background:rgba(255,255,255,0.1); border-color:rgba(255,255,255,0.1); }'
+    + '.mc-tab.active { background:rgba(255,255,255,0.08); border-color:rgba(255,255,255,0.15); }'
+    + '.mc-tab__name { font-size:14px; color:rgba(255,255,255,0.6); margin-bottom:4px; }'
+    + '.mc-tab.active .mc-tab__name { color:#fff; }'
+    + '.mc-tab__count { font-size:22px; font-weight:700; color:#fff; }'
+    + '.mc-tab__max { font-size:12px; color:rgba(255,255,255,0.3); }'
 
-      + '.mc-subcats { display:flex; gap:8px; padding:0 20px 12px; overflow-x:auto; }'
-      + '.mc-subcats::-webkit-scrollbar { display:none; }'
-      + '.mc-subcat { flex-shrink:0; display:flex; gap:8px; align-items:center; padding:8px 14px; border-radius:8px; background:rgba(255,255,255,0.06); cursor:pointer; }'
-      + '.mc-subcat:hover,.mc-subcat.focus { background:rgba(255,255,255,0.12); }'
-      + '.mc-subcat__thumb { width:40px; height:60px; border-radius:4px; background-size:cover; background-position:center; background-color:rgba(255,255,255,0.06); }'
-      + '.mc-subcat__info { display:flex; flex-direction:column; gap:2px; }'
-      + '.mc-subcat__name { font-size:13px; color:rgba(255,255,255,0.5); }'
-      + '.mc-subcat__num { font-size:18px; font-weight:700; color:#fff; }'
+    /* Section */
+    + '.mc-section { margin-bottom:20px; }'
+    + '.mc-section__head { display:flex; align-items:center; padding:8px 20px 12px; gap:8px; }'
+    + '.mc-section__title { font-size:20px; font-weight:700; color:#fff; flex:1; }'
+    + '.mc-section__more { font-size:13px; color:#3bd574; padding:6px 14px; border-radius:6px; background:rgba(59,213,116,0.1); cursor:pointer; }'
+    + '.mc-section__more:hover,.mc-section__more.focus { background:rgba(59,213,116,0.2); }'
 
-      + '.mc-row { display:flex; gap:14px; padding:0 20px; overflow-x:auto; overflow-y:hidden; scroll-behavior:smooth; }'
-      + '.mc-row::-webkit-scrollbar { display:none; }'
+    /* Subcategory row */
+    + '.mc-subcats { display:flex; gap:8px; padding:0 20px 12px; overflow-x:auto; }'
+    + '.mc-subcats::-webkit-scrollbar { display:none; }'
+    + '.mc-subcat { flex-shrink:0; display:flex; gap:8px; align-items:center; padding:8px 14px; border-radius:8px; background:rgba(255,255,255,0.06); cursor:pointer; }'
+    + '.mc-subcat:hover,.mc-subcat.focus { background:rgba(255,255,255,0.12); }'
+    + '.mc-subcat__thumb { width:40px; height:60px; border-radius:4px; background-size:cover; background-position:center; background-color:rgba(255,255,255,0.06); }'
+    + '.mc-subcat__info { display:flex; flex-direction:column; gap:2px; }'
+    + '.mc-subcat__name { font-size:13px; color:rgba(255,255,255,0.5); }'
+    + '.mc-subcat__num { font-size:18px; font-weight:700; color:#fff; }'
 
-      + '.mc-card { flex-shrink:0; width:160px; cursor:pointer; position:relative; transition:transform .15s; }'
-      + '.mc-card:hover,.mc-card.focus { transform:scale(1.04); }'
-      + '.mc-card__poster { width:160px; height:240px; border-radius:8px; background-size:cover; background-position:center top; background-color:rgba(255,255,255,0.06); position:relative; overflow:hidden; }'
-      + '.mc-card__badge { position:absolute; top:8px; right:8px; background:rgba(0,0,0,0.75); color:#f5c518; font-size:12px; font-weight:700; padding:3px 7px; border-radius:4px; }'
-      + '.mc-card__icons { position:absolute; bottom:8px; left:8px; display:flex; gap:4px; }'
-      + '.mc-card__icon { width:24px; height:24px; border-radius:4px; background:rgba(0,0,0,0.6); display:flex; align-items:center; justify-content:center; font-size:12px; }'
-      + '.mc-card__title { margin-top:8px; font-size:13px; color:#fff; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }'
-      + '.mc-card__year { margin-top:2px; font-size:12px; color:rgba(255,255,255,0.4); }'
+    /* Movie row */
+    + '.mc-row { display:flex; gap:14px; padding:0 20px; overflow-x:auto; overflow-y:hidden; scroll-behavior:smooth; }'
+    + '.mc-row::-webkit-scrollbar { display:none; }'
 
-      + '.mc-sort { display:flex; gap:8px; padding:12px 20px; overflow-x:auto; }'
-      + '.mc-sort::-webkit-scrollbar { display:none; }'
-      + '.mc-sort__btn { flex-shrink:0; padding:8px 16px; border-radius:8px; background:rgba(255,255,255,0.06); color:rgba(255,255,255,0.5); font-size:13px; cursor:pointer; }'
-      + '.mc-sort__btn:hover,.mc-sort__btn.focus { background:rgba(255,255,255,0.1); color:#fff; }'
-      + '.mc-sort__btn.active { background:rgba(59,213,116,0.15); color:#3bd574; }'
+    /* Movie card */
+    + '.mc-card { flex-shrink:0; cursor:pointer; position:relative; transition:transform .15s; }'
+    + '.mc-card:hover,.mc-card.focus { transform:scale(1.04); }'
+    + '.mc-card__poster { border-radius:8px; background-size:cover; background-position:center top; background-color:rgba(255,255,255,0.06); position:relative; overflow:hidden; }'
+    + '.mc-card__badge { position:absolute; top:8px; right:8px; background:rgba(0,0,0,0.75); color:#f5c518; font-size:12px; font-weight:700; padding:3px 7px; border-radius:4px; }'
+    + '.mc-card__icons { position:absolute; bottom:8px; left:8px; display:flex; gap:4px; }'
+    + '.mc-card__icon { width:24px; height:24px; border-radius:4px; background:rgba(0,0,0,0.6); display:flex; align-items:center; justify-content:center; font-size:12px; }'
+    + '.mc-card__title { margin-top:8px; font-size:13px; color:#fff; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }'
+    + '.mc-card__year { margin-top:2px; font-size:12px; color:rgba(255,255,255,0.4); }'
 
-      + '.mc-empty { padding:20px; color:rgba(255,255,255,0.3); font-size:14px; text-align:center; }'
+    /* Scale row */
+    + '.mc-scale { display:flex; gap:6px; padding:8px 20px; align-items:center; }'
+    + '.mc-scale__label { font-size:13px; color:rgba(255,255,255,0.4); margin-right:4px; white-space:nowrap; }'
+    + '.mc-scale__btn { flex-shrink:0; width:40px; height:36px; border-radius:6px; background:rgba(255,255,255,0.06); color:rgba(255,255,255,0.5); font-size:13px; font-weight:600; cursor:pointer; display:flex; align-items:center; justify-content:center; }'
+    + '.mc-scale__btn:hover,.mc-scale__btn.focus { background:rgba(255,255,255,0.12); color:#fff; }'
+    + '.mc-scale__btn.active { background:rgba(59,213,116,0.15); color:#3bd574; }'
 
-      + '.mc-add { flex-shrink:0; width:160px; height:240px; border-radius:8px; border:2px dashed rgba(255,255,255,0.1); display:flex; flex-direction:column; align-items:center; justify-content:center; gap:8px; color:rgba(255,255,255,0.3); cursor:pointer; transition:all .15s; }'
-      + '.mc-add:hover,.mc-add.focus { border-color:#3bd574; color:#3bd574; }'
-      + '.mc-add__icon { font-size:36px; }'
-      + '.mc-add__text { font-size:13px; }'
+    /* Sort row */
+    + '.mc-sort { display:flex; gap:8px; padding:12px 20px; overflow-x:auto; }'
+    + '.mc-sort::-webkit-scrollbar { display:none; }'
+    + '.mc-sort__btn { flex-shrink:0; padding:8px 16px; border-radius:8px; background:rgba(255,255,255,0.06); color:rgba(255,255,255,0.5); font-size:13px; cursor:pointer; }'
+    + '.mc-sort__btn:hover,.mc-sort__btn.focus { background:rgba(255,255,255,0.1); color:#fff; }'
+    + '.mc-sort__btn.active { background:rgba(59,213,116,0.15); color:#3bd574; }'
 
-      /* Кнопка на карточке фильма */
-      + '.my-collections-btn { display:inline-flex; align-items:center; gap:8px; cursor:pointer; padding:8px 16px; border-radius:8px; background:rgba(255,255,255,0.1); margin:4px; transition:all 0.2s; border:1px solid transparent; }'
-      + '.my-collections-btn:hover, .my-collections-btn.focus { background:rgba(255,255,255,0.15); }'
-      + '.my-collections-btn.mc-active { background:rgba(59,213,116,0.2); border-color:rgba(59,213,116,0.5); color:#3bd574; }'
-      + '.my-collections-btn svg { transition:fill 0.2s; }'
-      + '.my-collections-btn.mc-active svg { fill:#3bd574; stroke:#3bd574; }';
+    /* Empty */
+    + '.mc-empty { padding:20px; color:rgba(255,255,255,0.3); font-size:14px; text-align:center; }'
+
+    /* Action card (add new) */
+    + '.mc-add { flex-shrink:0; width:160px; height:240px; border-radius:8px; border:2px dashed rgba(255,255,255,0.1); display:flex; flex-direction:column; align-items:center; justify-content:center; gap:8px; color:rgba(255,255,255,0.3); cursor:pointer; transition:all .15s; }'
+    + '.mc-add:hover,.mc-add.focus { border-color:#3bd574; color:#3bd574; }'
+    + '.mc-add__icon { font-size:36px; }'
+    + '.mc-add__text { font-size:13px; }';
 
     var style = document.createElement('style');
     style.id = 'my-collections-styles';
@@ -231,7 +263,7 @@
     document.head.appendChild(style);
   }
 
-  // ========== Plugin Init ==========
+  // ========== Plugin ==========
 
   function startPlugin() {
     if (window._my_collections_plugin) return;
@@ -239,13 +271,11 @@
     injectStyles();
 
     Lampa.Manifest.plugins = {
-      type: 'video',
-      version: '2.0.0',
-      name: PLUGIN_NAME,
+      type: 'video', version: '1.5.0', name: PLUGIN_NAME,
       description: 'Закладки, коллекции и таймер просмотра',
       component: 'my_collections',
-      onContextMenu: function() { return { name: PLUGIN_NAME, description: 'Добавить в коллекцию' }; },
-      onContextLaunch: function(obj) { showAddToCollectionDialog(obj); }
+      onContextMenu: function(){ return { name: PLUGIN_NAME, description: '' }; },
+      onContextLauch: function(obj){ showAddToCollectionDialog(obj); }
     };
 
     addMenuButton();
@@ -259,10 +289,9 @@
       var item = document.createElement('div');
       item.className = 'menu__item selector my-collections-menu-item';
       item.innerHTML = '<div class="menu__item-icon">🎬</div><div class="menu__item-text">' + PLUGIN_NAME + '</div>';
-      item.addEventListener('hover:enter', function() { openCollectionsPage(); });
+      item.addEventListener('hover:enter', function(){ openCollectionsPage(); });
       var first = menuList.querySelector('.menu__item');
-      if (first) menuList.insertBefore(item, first);
-      else menuList.appendChild(item);
+      if (first) menuList.insertBefore(item, first); else menuList.appendChild(item);
     }, 2000);
   }
 
@@ -275,23 +304,19 @@
         }
       });
     }
-    if (Lampa.Activity && Lampa.Activity.listener) {
-      Lampa.Activity.listener.follow('complite', function() {
-        setTimeout(tryAddCardButton, 800);
-      });
-      Lampa.Activity.listener.follow('start', function() {
-        setTimeout(tryAddCardButton, 1200);
-      });
-    }
+    Lampa.Activity.listener.follow('complite', function(a) {
+      setTimeout(tryAddCardButton, 800);
+    });
+    Lampa.Activity.listener.follow('start', function(a) {
+      setTimeout(tryAddCardButton, 1200);
+    });
   }
 
-  // ========== Dialogs ==========
+  // ========== Add Dialog ==========
+
+  function safeBack() {}
 
   function showAddToCollectionDialog(movie) {
-    if (!movie || !movie.id) {
-      Lampa.Noty.show('Ошибка: нет данных о фильме');
-      return;
-    }
     var collections = getCollections();
     var items = [];
     var keys = Object.keys(collections);
@@ -302,9 +327,7 @@
       items.push({
         title: col.icon + ' ' + col.name + (inCol ? ' ✓' : ''),
         subtitle: inCol ? 'Нажми чтобы убрать' : 'Добавить',
-        _id: key,
-        _movie: movie,
-        _in: inCol
+        _id: key, _movie: movie, _in: inCol
       });
     }
     items.push({ title: '➕ Создать коллекцию', _create: true });
@@ -320,18 +343,12 @@
           Lampa.Noty.show('Убрано из «' + collections[item._id].name + '»');
           refreshCardButton();
         } else {
-          var added = addToCollection(item._id, item._movie);
-          if (added) {
-            Lampa.Noty.show('Добавлено в «' + collections[item._id].name + '»');
-          } else {
-            Lampa.Noty.show('Уже в коллекции или ошибка');
-          }
+          addToCollection(item._id, item._movie);
+          Lampa.Noty.show('Добавлено в «' + collections[item._id].name + '»');
           refreshCardButton();
         }
       },
-      onBack: function() {
-        // НЕ делаем Activity.backward() — Select сам закроется
-      }
+      onBack: safeBack
     });
   }
 
@@ -360,15 +377,15 @@
           showCustomNameDialog(movie);
         }
       },
-      onBack: function() {
-        showAddToCollectionDialog(movie);
-      }
+      onBack: function() { showAddToCollectionDialog(movie); }
     });
   }
 
   function showCustomNameDialog(movie) {
     var name = '';
     var letters = 'АБВГДЕЖЗИКЛМНОПРСТУФХЦЧШЩЭЮЯабвгдежзиклмнопрстуфхцчшщэюя 0123456789';
+    var currentIdx = 0;
+    var currentChar = 'А';
 
     function render() {
       var items = [];
@@ -393,12 +410,8 @@
           }
         },
         onBack: function() {
-          if (name.length > 0) {
-            name = name.slice(0, -1);
-            render();
-          } else {
-            showCreateCollectionDialog(movie);
-          }
+          if (name.length > 0) { name = name.slice(0, -1); render(); }
+          else showCreateCollectionDialog(movie);
         }
       });
     }
@@ -417,8 +430,9 @@
   }
 
   function refreshCardButton() {
-    _lastFullCard = null;
     setTimeout(tryAddCardButton, 300);
+    setTimeout(tryAddCardButton, 1000);
+    setTimeout(tryAddCardButton, 2000);
   }
 
   // ========== Main Page ==========
@@ -427,6 +441,7 @@
     var collections = getCollections();
     var totalTime = getWatchTime();
     var sortId = getSortId();
+    var activeTab = null;
 
     var scroll = new Lampa.Scroll({ mask: true, over: true });
     scroll.body().addClass('mc-page');
@@ -445,13 +460,14 @@
     var tabsEl = $('<div class="mc-tabs"></div>');
     var keys = Object.keys(collections);
 
+    /* "All" tab */
     var allCount = 0;
-    for (var i = 0; i < keys.length; i++) allCount += (collections[keys[i]].movies || []).length;
+    for (var i = 0; i < keys.length; i++) allCount += collections[keys[i]].movies.length;
 
     var allTab = $(
       '<div class="mc-tab active" data-tab="all">' +
         '<div class="mc-tab__name">Все</div>' +
-        '<div class="mc-tab__count">' + allCount + '</div>' +
+        '<div class="mc-tab__count">' + allCount + ' <span class="mc-tab__max">/ 500</span></div>' +
       '</div>'
     );
     tabsEl.append(allTab);
@@ -462,12 +478,13 @@
       var tab = $(
         '<div class="mc-tab" data-tab="' + key + '">' +
           '<div class="mc-tab__name">' + col.icon + ' ' + col.name + '</div>' +
-          '<div class="mc-tab__count">' + (col.movies || []).length + '</div>' +
+          '<div class="mc-tab__count">' + col.movies.length + ' <span class="mc-tab__max">/ 500</span></div>' +
         '</div>'
       );
       tab.data('id', key);
       tabsEl.append(tab);
     }
+
     scroll.append(tabsEl);
 
     /* Sort */
@@ -479,6 +496,18 @@
       sortEl.append(btn);
     }
     scroll.append(sortEl);
+
+    /* Scale */
+    var scaleId = getScaleId();
+    var scaleEl = $('<div class="mc-scale"></div>');
+    scaleEl.append($('<div class="mc-scale__label">Размер:</div>'));
+    for (var sc = 0; sc < SCALE_LEVELS.length; sc++) {
+      var sl = SCALE_LEVELS[sc];
+      var scaleBtn = $('<div class="mc-scale__btn' + (sl.id === scaleId ? ' active' : '') + '" data-scale="' + sl.id + '">' + sl.label + '</div>');
+      scaleBtn.data('sid', sl.id);
+      scaleEl.append(scaleBtn);
+    }
+    scroll.append(scaleEl);
 
     /* Sections container */
     var sectionsEl = $('<div></div>');
@@ -493,17 +522,14 @@
       for (var i = 0; i < k.length; i++) {
         var id = k[i];
         var c = cols[id];
-        if (!c.movies || !c.movies.length) continue;
+        if (!c.movies.length) continue;
 
         var sorted = sortMovies(c.movies, sId);
-        var films = [], series = [];
-        for (var j = 0; j < sorted.length; j++) {
-          if (sorted[j].media_type === 'tv') series.push(sorted[j]);
-          else films.push(sorted[j]);
-        }
+        var types = splitByType(sorted);
 
         var section = $('<div class="mc-section" data-section="' + id + '"></div>');
 
+        /* Section header */
         var head = $(
           '<div class="mc-section__head">' +
             '<div class="mc-section__title">' + c.icon + ' ' + c.name + '</div>' +
@@ -512,32 +538,36 @@
         );
         section.append(head);
 
+        /* Subcategories */
         var subcats = $('<div class="mc-subcats"></div>');
-        if (films.length) {
-          var filmThumb = films[0] ? posterUrl(films[0]) : '';
+        if (types.films.length) {
+          var filmThumb = types.films[0] ? posterUrl(types.films[0]) : '';
           subcats.append($(
             '<div class="mc-subcat selector" data-sub-type="films" data-sub-col="' + id + '">' +
               '<div class="mc-subcat__thumb" style="background-image:url(' + (filmThumb || '') + ')"></div>' +
-              '<div class="mc-subcat__info"><div class="mc-subcat__name">Фильмы</div><div class="mc-subcat__num">' + films.length + '</div></div>' +
+              '<div class="mc-subcat__info"><div class="mc-subcat__name">Фильмы</div><div class="mc-subcat__num">' + types.films.length + '</div></div>' +
             '</div>'
           ));
         }
-        if (series.length) {
-          var seriesThumb = series[0] ? posterUrl(series[0]) : '';
+        if (types.series.length) {
+          var seriesThumb = types.series[0] ? posterUrl(types.series[0]) : '';
           subcats.append($(
             '<div class="mc-subcat selector" data-sub-type="series" data-sub-col="' + id + '">' +
               '<div class="mc-subcat__thumb" style="background-image:url(' + (seriesThumb || '') + ')"></div>' +
-              '<div class="mc-subcat__info"><div class="mc-subcat__name">Сериалы</div><div class="mc-subcat__num">' + series.length + '</div></div>' +
+              '<div class="mc-subcat__info"><div class="mc-subcat__name">Сериалы</div><div class="mc-subcat__num">' + types.series.length + '</div></div>' +
             '</div>'
           ));
         }
         section.append(subcats);
 
+        /* Movie row */
         var row = $('<div class="mc-row"></div>');
         for (var j = 0; j < sorted.length && j < 12; j++) {
-          row.append(createCard(sorted[j], id));
+          var m = sorted[j];
+          row.append(createCard(m, id));
         }
         section.append(row);
+
         sectionsEl.append(section);
       }
 
@@ -550,6 +580,7 @@
       var url = posterUrl(m);
       var year = (m.release_date || '').substring(0, 4);
       var rating = (m.vote_average || 0).toFixed(1);
+      var sz = getCardSize();
       var icons = '';
       if (isInCollection('watched', m.id)) icons += '<div class="mc-card__icon">👁</div>';
       if (isInCollection('favorite', m.id)) icons += '<div class="mc-card__icon">❤️</div>';
@@ -558,7 +589,7 @@
 
       return $(
         '<div class="mc-card selector" data-mid="' + m.id + '" data-col="' + collectionId + '">' +
-          '<div class="mc-card__poster" style="background-image:url(' + (url || '') + ')">' +
+          '<div class="mc-card__poster" style="width:' + sz.w + 'px;height:' + sz.h + 'px;background-image:url(' + (url || '') + ')">' +
             (m.vote_average > 0 ? '<div class="mc-card__badge">' + rating + '</div>' : '') +
             (icons ? '<div class="mc-card__icons">' + icons + '</div>' : '') +
           '</div>' +
@@ -586,9 +617,7 @@
         if (Navigator.canmove('left')) Navigator.move('left');
         else Lampa.Controller.toggle('menu');
       },
-      back: function() {
-        Lampa.Activity.backward();
-      }
+      back: function() { Lampa.Activity.backward(); }
     });
 
     /* Events */
@@ -598,13 +627,26 @@
 
     scroll.render().on('hover:enter', '.mc-tab[data-tab]', function() {
       var id = $(this).attr('data-tab') || 'all';
-      openCollectionMovies(id);
+      if (id === 'all') {
+        openCollectionMovies('all');
+      } else {
+        openCollectionMovies(id);
+      }
     });
 
     scroll.render().on('hover:enter', '.mc-sort__btn[data-sort]', function() {
       var id = $(this).attr('data-sort');
       Lampa.Storage.set(SORT_KEY, id);
       sortEl.find('.mc-sort__btn').removeClass('active');
+      $(this).addClass('active');
+      renderSections();
+      try { scroll.update(); } catch(e) {}
+    });
+
+    scroll.render().on('hover:enter', '.mc-scale__btn[data-scale]', function() {
+      var sid = $(this).attr('data-scale');
+      Lampa.Storage.set(SCALE_KEY, sid);
+      scaleEl.find('.mc-scale__btn').removeClass('active');
       $(this).addClass('active');
       renderSections();
       try { scroll.update(); } catch(e) {}
@@ -629,12 +671,15 @@
     Lampa.Activity.push({
       title: PLUGIN_NAME,
       component: 'mc_main',
-      onBack: function() {
-        Lampa.Controller.toggle('menu');
-      }
+      onBack: function() { Lampa.Controller.toggle('menu'); }
     });
 
     setTimeout(function() {
+      var active = Lampa.Activity.active();
+      if (active && active.activity && active.activity.render) {
+        var render = active.activity.render();
+        render.empty().append(scroll.render());
+      }
       Lampa.Controller.toggle('mc_main');
       try { scroll.update(); } catch(e) {}
     }, 300);
@@ -654,19 +699,17 @@
     if (isAll) {
       var k = Object.keys(collections);
       for (var i = 0; i < k.length; i++) {
-        if (collections[k[i]].movies) {
-          allMovies = allMovies.concat(collections[k[i]].movies);
-        }
+        allMovies = allMovies.concat(collections[k[i]].movies);
       }
     } else {
-      allMovies = col.movies || [];
+      allMovies = col.movies;
     }
 
     var sorted = sortMovies(allMovies, sortId);
     if (filterType === 'films') sorted = sorted.filter(function(m) { return m.media_type !== 'tv'; });
     else if (filterType === 'series') sorted = sorted.filter(function(m) { return m.media_type === 'tv'; });
-
     var isCustom = !isAll && collectionId.indexOf('custom_') === 0;
+
     var titleText = isAll ? 'Все коллекции' : (col.icon + ' ' + col.name);
 
     var scroll = new Lampa.Scroll({ mask: true, over: true });
@@ -710,9 +753,10 @@
       var url = posterUrl(m);
       var year = (m.release_date || '').substring(0, 4);
       var rating = (m.vote_average || 0).toFixed(1);
+      var sz = getCardSize();
       return $(
         '<div class="mc-card selector" data-mid="' + m.id + '" data-col="' + colId + '">' +
-          '<div class="mc-card__poster" style="background-image:url(' + (url || '') + ')">' +
+          '<div class="mc-card__poster" style="width:' + sz.w + 'px;height:' + sz.h + 'px;background-image:url(' + (url || '') + ')">' +
             (m.vote_average > 0 ? '<div class="mc-card__badge">' + rating + '</div>' : '') +
           '</div>' +
           '<div class="mc-card__title">' + (m.title || '') + '</div>' +
@@ -737,60 +781,53 @@
         if (Navigator.canmove('left')) Navigator.move('left');
         else Lampa.Controller.toggle('menu');
       },
-      back: function() {
-        Lampa.Activity.backward();
-      }
+      back: function() { Lampa.Activity.backward(); }
     });
 
-    scroll.render().on('hover:enter', '[data-nav="back"]', function() {
-      Lampa.Activity.backward();
-    });
-
+    scroll.render().on('hover:enter', '[data-nav="back"]', function() { Lampa.Activity.backward(); });
     scroll.render().on('hover:enter', '.mc-sort__btn[data-sort]', function() {
       Lampa.Storage.set(SORT_KEY, $(this).attr('data-sort'));
       Lampa.Activity.backward();
-      setTimeout(function() {
-        openCollectionMovies(collectionId, filterType);
-      }, 100);
+      setTimeout(function() { openCollectionMovies(collectionId, filterType); }, 100);
     });
-
     scroll.render().on('hover:enter', '.mc-card[data-mid]', function() {
       var movie = $(this).data('movie');
       var colId = $(this).data('collection');
       if (movie) showMovieActions(colId, movie);
     });
-
     scroll.render().on('hover:enter', '[data-action="delete"]', function() {
+      var cols = getCollections();
+      var delCol = cols[collectionId];
+      if (!delCol) return;
       Lampa.Select.show({
         title: 'Удалить коллекцию?',
         items: [
-          { title: 'Да, удалить «' + col.name + '»', _yes: true },
+          { title: 'Да, удалить «' + delCol.name + '»', _yes: true },
           { title: 'Нет, оставить', _no: true }
         ],
         onSelect: function(item) {
           if (item._yes) {
             deleteCollection(collectionId);
             Lampa.Noty.show('Коллекция удалена');
-            Lampa.Activity.backward();
-          } else {
-            Lampa.Activity.backward();
+            try { Lampa.Activity.backward(); } catch(e) { Lampa.Controller.toggle('menu'); }
           }
         },
-        onBack: function() {
-          // Просто закрываем диалог
-        }
+        onBack: safeBack
       });
     });
 
     Lampa.Activity.push({
       title: titleText,
       component: 'mc_movies',
-      onBack: function() {
-        Lampa.Activity.backward();
-      }
+      onBack: function() { Lampa.Activity.backward(); }
     });
 
     setTimeout(function() {
+      var active = Lampa.Activity.active();
+      if (active && active.activity && active.activity.render) {
+        var render = active.activity.render();
+        render.empty().append(scroll.render());
+      }
       Lampa.Controller.toggle('mc_movies');
       try { scroll.update(); } catch(e) {}
     }, 300);
@@ -818,8 +855,7 @@
       onSelect: function(item) {
         if (item._a === 'info') {
           var card = {
-            id: movie.id,
-            title: movie.title || '',
+            id: movie.id, title: movie.title || '',
             original_title: movie.original_title || '',
             poster_path: movie.poster_path || '',
             backdrop_path: movie.backdrop_path || '',
@@ -831,23 +867,16 @@
             source: movie.source || 'tmdb',
             media_type: movie.media_type || 'movie'
           };
-          Lampa.Activity.push({
-            title: card.title,
-            component: 'full',
-            card: card,
-            data: { movie: card }
-          });
+          Lampa.Activity.push({ title: card.title, component: 'full', card: card, data: { movie: card } });
         } else if (item._a === 'remove') {
           removeFromCollection(collectionId, movie.id);
           Lampa.Noty.show('Удалено из коллекции');
-          Lampa.Activity.backward();
+          refreshCardButton();
         } else if (item._a === 'move') {
           showMoveDialog(collectionId, movie);
         }
       },
-      onBack: function() {
-        // Закрываем диалог, остаёмся на странице
-      }
+      onBack: safeBack
     });
   }
 
@@ -867,17 +896,28 @@
         removeFromCollection(fromId, movie.id);
         addToCollection(item._id, movie);
         Lampa.Noty.show('Перемещено');
-        Lampa.Activity.backward();
       },
-      onBack: function() {
-        showMovieActions(fromId, movie);
-      }
+      onBack: safeBack
     });
   }
 
   // ========== Card Button ==========
 
-  var _lastFullCard = null;
+  function getButtonStyle(inAny) {
+    if (inAny) {
+      return 'display:inline-flex;align-items:center;gap:8px;cursor:pointer;padding:8px 16px;border-radius:8px;background:rgba(255,255,255,0.85);color:#111;margin:4px;';
+    }
+    return 'display:inline-flex;align-items:center;gap:8px;cursor:pointer;padding:8px 16px;border-radius:8px;background:transparent;border:1px solid rgba(255,255,255,0.2);color:rgba(255,255,255,0.5);margin:4px;';
+  }
+
+  function isMovieInAnyCollection(movieId) {
+    var cols = getCollections();
+    var k = Object.keys(cols);
+    for (var i = 0; i < k.length; i++) {
+      if (isInCollection(k[i], movieId)) return true;
+    }
+    return false;
+  }
 
   function tryAddCardButton() {
     try {
@@ -886,32 +926,36 @@
 
       var movie = active.card || (active.data && active.data.movie);
       if (!movie || !movie.id) return;
-      if (_lastFullCard && _lastFullCard.id === movie.id) return;
 
-      var render = active.activity && active.activity.render ? active.activity.render() : null;
+      var render = active.activity.render();
       if (!render || !render.length) return;
 
-      render.find('.my-collections-btn').remove();
-
+      var existing = render.find('.my-collections-btn');
       var inAny = isMovieInAnyCollection(movie.id);
-      var activeClass = inAny ? 'mc-active' : '';
 
-      var btnHtml = '<div class="full-start__button selector my-collections-btn ' + activeClass + '" style="display:inline-flex;align-items:center;gap:8px;">' +
-        '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="' + (inAny ? '#3bd574' : 'none') + '" stroke="currentColor" stroke-width="2"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>' +
-        '<span>' + PLUGIN_NAME + '</span></div>';
+      if (existing.length) {
+        existing.attr('style', getButtonStyle(inAny));
+        existing.find('.mc-btn-text').text(PLUGIN_NAME + (inAny ? ' ✓' : ''));
+        return;
+      }
 
-      var btn = $(btnHtml);
+      var btn = $('<div class="full-start__button selector my-collections-btn" style="' + getButtonStyle(inAny) + '"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg><span class="mc-btn-text">' + PLUGIN_NAME + (inAny ? ' ✓' : '') + '</span></div>');
+
       btn.on('hover:enter click', function() {
         showAddToCollectionDialog(movie);
       });
 
       var targets = [
         '.full-start__buttons .full-start__button:last-child',
+        '.full-start__buttons .full-start__button:last',
         '.full-start__buttons',
         '.full-start__left',
         '.detail-page__buttons',
+        '.card--more',
         '.buttons-full',
-        '.full-start__tag'
+        '.full-start__tag',
+        '.full__title + .full-start__buttons',
+        '.full-start__descr ~ div'
       ];
 
       var inserted = false;
@@ -926,27 +970,14 @@
 
       if (!inserted) {
         var anyBtn = render.find('.selector').filter(function() {
-          var txt = $(this).text();
-          return txt.indexOf('Торрент') >= 0 || txt.indexOf('Онлайн') >= 0 || txt.indexOf('Трейлер') >= 0;
+          return $(this).text().indexOf('Торрент') >= 0 || $(this).text().indexOf('Онлайн') >= 0 || $(this).text().indexOf('Трейлер') >= 0;
         }).first();
         if (anyBtn.length) {
           anyBtn.parent().append(btn);
           inserted = true;
         }
       }
-
-      if (!inserted) {
-        var desc = render.find('.full-start__text, .full__description, .detail-page__text');
-        if (desc.length) {
-          desc.first().after(btn);
-          inserted = true;
-        }
-      }
-
-      if (inserted) _lastFullCard = movie;
-    } catch(e) {
-      console.log('[MC] Button error:', e);
-    }
+    } catch(e) {}
   }
 
   // ========== Init ==========
