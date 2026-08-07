@@ -388,7 +388,7 @@
         if (types.films.length) {
           var filmThumb = types.films[0] ? posterUrl(types.films[0]) : '';
           subcats.append($(
-            '<div class="mc-subcat selector" data-sub="films_' + id + '">' +
+            '<div class="mc-subcat selector" data-sub-type="films" data-sub-col="' + id + '">' +
               '<div class="mc-subcat__thumb" style="background-image:url(' + (filmThumb || '') + ')"></div>' +
               '<div class="mc-subcat__info"><div class="mc-subcat__name">Фильмы</div><div class="mc-subcat__num">' + types.films.length + '</div></div>' +
             '</div>'
@@ -397,7 +397,7 @@
         if (types.series.length) {
           var seriesThumb = types.series[0] ? posterUrl(types.series[0]) : '';
           subcats.append($(
-            '<div class="mc-subcat selector" data-sub="series_' + id + '">' +
+            '<div class="mc-subcat selector" data-sub-type="series" data-sub-col="' + id + '">' +
               '<div class="mc-subcat__thumb" style="background-image:url(' + (seriesThumb || '') + ')"></div>' +
               '<div class="mc-subcat__info"><div class="mc-subcat__name">Сериалы</div><div class="mc-subcat__num">' + types.series.length + '</div></div>' +
             '</div>'
@@ -497,11 +497,9 @@
       if (movie) showMovieActions(col, movie);
     });
 
-    scroll.render().on('hover:enter', '.mc-subcat[data-sub]', function() {
-      var sub = $(this).data('sub');
-      var parts = sub.split('_');
-      var type = parts[0];
-      var colId = parts.slice(1).join('_');
+    scroll.render().on('hover:enter', '.mc-subcat[data-sub-type]', function() {
+      var type = $(this).attr('data-sub-type');
+      var colId = $(this).attr('data-sub-col');
       openCollectionMovies(colId, type);
     });
 
