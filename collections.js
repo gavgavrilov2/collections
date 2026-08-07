@@ -238,12 +238,11 @@
   }
 
   function initListener() {
-    var lastActivity = '';
     Lampa.Activity.listener.follow('complite', function(a) {
-      var comp = a && a.activity && a.activity.component;
-      if (comp === 'full' || (comp && comp.indexOf && comp.indexOf('full') >= 0)) {
-        setTimeout(tryAddCardButton, 600);
-      }
+      setTimeout(tryAddCardButton, 800);
+    });
+    Lampa.Activity.listener.follow('start', function(a) {
+      setTimeout(tryAddCardButton, 1200);
     });
   }
 
@@ -484,7 +483,7 @@
       sortEl.find('.mc-sort__btn').removeClass('active');
       $(this).addClass('active');
       renderSections();
-      scroll.update();
+      try { scroll.update(); } catch(e) {}
     });
 
     scroll.render().on('hover:enter', '[data-section-more]', function() {
@@ -511,8 +510,8 @@
 
     setTimeout(function() {
       Lampa.Controller.toggle('mc_main');
-      scroll.update();
-    }, 100);
+      try { scroll.update(); } catch(e) {}
+    }, 300);
   }
 
   // ========== Collection Movies Page ==========
@@ -652,8 +651,8 @@
 
     setTimeout(function() {
       Lampa.Controller.toggle('mc_movies');
-      scroll.update();
-    }, 100);
+      try { scroll.update(); } catch(e) {}
+    }, 300);
   }
 
   // ========== Movie Actions ==========
@@ -735,8 +734,6 @@
     try {
       var active = Lampa.Activity.active();
       if (!active) return;
-      var comp = active.activity && active.activity.component;
-      if (comp !== 'full' && (!comp || comp.indexOf('full') < 0)) return;
 
       var movie = active.card || (active.data && active.data.movie);
       if (!movie || !movie.id) return;
@@ -759,7 +756,14 @@
         showAddToCollectionDialog(movie);
       });
 
-      var targets = ['.full-start__buttons .full-start__button:last', '.full-start__buttons'];
+      var targets = [
+        '.full-start__buttons .full-start__button:last-child',
+        '.full-start__buttons .full-start__button:last',
+        '.full-start__buttons',
+        '.full-start__left',
+        '.detail-page__buttons',
+        '.card--more'
+      ];
       for (var t = 0; t < targets.length; t++) {
         var el = render.find(targets[t]);
         if (el.length) {
