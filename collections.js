@@ -22,15 +22,24 @@
   ];
 
   function getCollections() {
-    var data = Lampa.Storage.get(STORAGE_KEY);
-    if (!data || typeof data !== 'object' || !data.watched) {
-      data = JSON.parse(JSON.stringify(DEFAULT_COLLECTIONS));
-      saveCollections(data);
-    }
+    try {
+      var raw = localStorage.getItem(STORAGE_KEY);
+      if (raw) {
+        var data = JSON.parse(raw);
+        if (data && typeof data === 'object' && data.watched) return data;
+      }
+    } catch(e) {}
+    var data = JSON.parse(JSON.stringify(DEFAULT_COLLECTIONS));
+    saveCollections(data);
     return data;
   }
 
-  function saveCollections(data) { Lampa.Storage.set(STORAGE_KEY, data); }
+  function saveCollections(data) {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+    } catch(e) {}
+    try { Lampa.Storage.set(STORAGE_KEY, data); } catch(e2) {}
+  }
 
   function isInCollection(collectionId, movieId) {
     var col = getCollections()[collectionId];
@@ -373,7 +382,8 @@
 
   function refreshCardButton() {
     _lastFullCard = null;
-    setTimeout(tryAddCardButton, 300);
+    setTimeout(tryAddCardButton, 500);
+    setTimeout(tryAddCardButton, 1500);
   }
 
   // ========== Main Page ==========
@@ -709,22 +719,23 @@
       if (movie) showMovieActions(colId, movie);
     });
     scroll.render().on('hover:enter', '[data-action="delete"]', function() {
+      var cols = getCollections();
+      var delCol = cols[collectionId];
+      if (!delCol) return;
       Lampa.Select.show({
         title: 'Удалить коллекцию?',
         items: [
-          { title: 'Да, удалить «' + col.name + '»', _yes: true },
+          { title: 'Да, удалить «' + delCol.name + '»', _yes: true },
           { title: 'Нет, оставить', _no: true }
         ],
         onSelect: function(item) {
           if (item._yes) {
             deleteCollection(collectionId);
             Lampa.Noty.show('Коллекция удалена');
-            Lampa.Activity.backward();
-          } else {
-            Lampa.Activity.backward();
+            try { Lampa.Activity.backward(); } catch(e) { Lampa.Controller.toggle('menu'); }
           }
         },
-        onBack: function() { Lampa.Activity.backward(); }
+        onBack: safeBack
       });
     });
 
@@ -778,13 +789,12 @@
         } else if (item._a === 'remove') {
           removeFromCollection(collectionId, movie.id);
           Lampa.Noty.show('Удалено из коллекции');
-          Lampa.Activity.backward();
-          setTimeout(function() { openCollectionMovies(collectionId); }, 100);
+          refreshCardButton();
         } else if (item._a === 'move') {
           showMoveDialog(collectionId, movie);
         }
       },
-      onBack: function() { openCollectionMovies(collectionId); }
+      onBack: safeBack
     });
   }
 
@@ -804,10 +814,8 @@
         removeFromCollection(fromId, movie.id);
         addToCollection(item._id, movie);
         Lampa.Noty.show('Перемещено');
-        Lampa.Activity.backward();
-        setTimeout(function() { openCollectionMovies(fromId); }, 100);
       },
-      onBack: function() { showMovieActions(fromId, movie); }
+      onBack: safeBack
     });
   }
 
