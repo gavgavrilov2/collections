@@ -470,16 +470,16 @@
     });
 
     scroll.render().on('hover:enter', '.mc-tab[data-tab]', function() {
-      var id = $(this).data('id') || 'all';
+      var id = $(this).attr('data-tab') || 'all';
       if (id === 'all') {
-        renderSections();
+        openCollectionMovies('all');
       } else {
         openCollectionMovies(id);
       }
     });
 
     scroll.render().on('hover:enter', '.mc-sort__btn[data-sort]', function() {
-      var id = $(this).data('sort');
+      var id = $(this).attr('data-sort');
       Lampa.Storage.set(SORT_KEY, id);
       sortEl.find('.mc-sort__btn').removeClass('active');
       $(this).addClass('active');
@@ -521,14 +521,28 @@
 
   function openCollectionMovies(collectionId, filterType) {
     var collections = getCollections();
-    var col = collections[collectionId];
-    if (!col) return;
+    var isAll = collectionId === 'all';
+    var col = isAll ? null : collections[collectionId];
+    if (!isAll && !col) return;
 
     var sortId = getSortId();
-    var sorted = sortMovies(col.movies, sortId);
+    var allMovies = [];
+
+    if (isAll) {
+      var k = Object.keys(collections);
+      for (var i = 0; i < k.length; i++) {
+        allMovies = allMovies.concat(collections[k[i]].movies);
+      }
+    } else {
+      allMovies = col.movies;
+    }
+
+    var sorted = sortMovies(allMovies, sortId);
     if (filterType === 'films') sorted = sorted.filter(function(m) { return m.media_type !== 'tv'; });
     else if (filterType === 'series') sorted = sorted.filter(function(m) { return m.media_type === 'tv'; });
-    var isCustom = collectionId.indexOf('custom_') === 0;
+    var isCustom = !isAll && collectionId.indexOf('custom_') === 0;
+
+    var titleText = isAll ? 'Все коллекции' : (col.icon + ' ' + col.name);
 
     var scroll = new Lampa.Scroll({ mask: true, over: true });
     scroll.body().addClass('mc-page');
@@ -537,7 +551,7 @@
     scroll.append($(
       '<div class="mc-header">' +
         '<div class="mc-header__back selector" data-nav="back">←</div>' +
-        '<div class="mc-header__title">' + col.icon + ' ' + col.name + ' <span style="font-size:14px;color:rgba(255,255,255,0.4);font-weight:400;">(' + sorted.length + ')</span></div>' +
+        '<div class="mc-header__title">' + titleText + ' <span style="font-size:14px;color:rgba(255,255,255,0.4);font-weight:400;">(' + sorted.length + ')</span></div>' +
       '</div>'
     ));
 
@@ -557,7 +571,7 @@
     if (!sorted.length) row.append($('<div class="mc-empty">Пусто</div>'));
     scroll.append(row);
 
-    /* Actions */
+    /* Delete button for custom */
     if (isCustom) {
       var actions = $(
         '<div style="padding:20px;display:flex;gap:10px;">' +
@@ -603,7 +617,7 @@
 
     scroll.render().on('hover:enter', '[data-nav="back"]', function() { Lampa.Activity.backward(); });
     scroll.render().on('hover:enter', '.mc-sort__btn[data-sort]', function() {
-      Lampa.Storage.set(SORT_KEY, $(this).data('sort'));
+      Lampa.Storage.set(SORT_KEY, $(this).attr('data-sort'));
       Lampa.Activity.backward();
       setTimeout(function() { openCollectionMovies(collectionId, filterType); }, 100);
     });
@@ -613,15 +627,27 @@
       if (movie) showMovieActions(colId, movie);
     });
     scroll.render().on('hover:enter', '[data-action="delete"]', function() {
-      if (confirm('Удалить коллекцию «' + col.name + '»?')) {
-        deleteCollection(collectionId);
-        Lampa.Noty.show('Коллекция удалена');
-        Lampa.Activity.backward();
-      }
+      Lampa.Select.show({
+        title: 'Удалить коллекцию?',
+        items: [
+          { title: 'Да, удалить «' + col.name + '»', _yes: true },
+          { title: 'Нет, оставить', _no: true }
+        ],
+        onSelect: function(item) {
+          if (item._yes) {
+            deleteCollection(collectionId);
+            Lampa.Noty.show('Коллекция удалена');
+            Lampa.Activity.backward();
+          } else {
+            Lampa.Activity.backward();
+          }
+        },
+        onBack: function() { Lampa.Activity.backward(); }
+      });
     });
 
     Lampa.Activity.push({
-      title: col.name,
+      title: titleText,
       component: 'mc_movies',
       onBack: function() { Lampa.Activity.backward(); }
     });
