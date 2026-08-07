@@ -6,28 +6,20 @@
   var TIME_KEY = 'my_collections_time';
   var SORT_KEY = 'my_collections_sort';
 
-  console.log('[MovieZone] Loading ' + PLUGIN_NAME + ' v1.0.0');
-
-  // ========== Default Collections ==========
-
   var DEFAULT_COLLECTIONS = {
-    watched:     { name: 'Посмотрел',       icon: '✅', movies: [] },
-    will_watch:  { name: 'Буду смотреть',   icon: '👁', movies: [] },
-    want_watch:  { name: 'Хочу посмотреть', icon: '💡', movies: [] },
-    later:       { name: 'Потом',           icon: '⏰', movies: [] },
-    favorite:    { name: 'Избранное',       icon: '❤️', movies: [] }
+    watched:     { name: 'Посмотрел',       icon: '👁', movies: [], isDefault: true },
+    will_watch:  { name: 'Буду смотреть',   icon: '👀', movies: [], isDefault: true },
+    want_watch:  { name: 'Хочу посмотреть', icon: '💡', movies: [], isDefault: true },
+    later:       { name: 'Потом',           icon: '⏰', movies: [], isDefault: true },
+    favorite:    { name: 'Избранное',       icon: '❤️', movies: [], isDefault: true }
   };
 
   var SORT_OPTIONS = [
-    { id: 'date_desc',  name: 'По дате (новые)' },
-    { id: 'date_asc',   name: 'По дате (старые)' },
-    { id: 'rating_desc', name: 'По рейтингу (высокий)' },
-    { id: 'rating_asc',  name: 'По рейтингу (низкий)' },
-    { id: 'alpha_asc',  name: 'По алфавиту (А-Я)' },
-    { id: 'alpha_desc', name: 'По алфавиту (Я-А)' }
+    { id: 'date_desc',   name: 'По дате (новые)' },
+    { id: 'date_asc',    name: 'По дате (старые)' },
+    { id: 'rating_desc', name: 'По рейтингу' },
+    { id: 'alpha_asc',   name: 'По алфавиту' }
   ];
-
-  // ========== Storage Functions ==========
 
   function getCollections() {
     var data = Lampa.Storage.get(STORAGE_KEY);
@@ -38,18 +30,10 @@
     return data;
   }
 
-  function saveCollections(data) {
-    Lampa.Storage.set(STORAGE_KEY, data);
-  }
-
-  function getMovieHash(movie) {
-    var base = (movie.id || '') + '_' + (movie.original_title || movie.title || movie.name || '');
-    return Lampa.Utils.hash(base);
-  }
+  function saveCollections(data) { Lampa.Storage.set(STORAGE_KEY, data); }
 
   function isInCollection(collectionId, movieId) {
-    var collections = getCollections();
-    var col = collections[collectionId];
+    var col = getCollections()[collectionId];
     if (!col || !col.movies) return false;
     for (var i = 0; i < col.movies.length; i++) {
       if (col.movies[i].id === movieId) return true;
@@ -61,11 +45,9 @@
     var collections = getCollections();
     var col = collections[collectionId];
     if (!col) return false;
-
     for (var i = 0; i < col.movies.length; i++) {
       if (col.movies[i].id === movie.id) return false;
     }
-
     col.movies.push({
       id: movie.id || 0,
       title: movie.title || movie.name || '',
@@ -77,11 +59,10 @@
       vote_count: movie.vote_count || 0,
       overview: movie.overview || '',
       genre_ids: movie.genre_ids || [],
+      media_type: movie.media_type || 'movie',
       added_at: Date.now(),
-      watch_time: 0,
       source: movie.source || 'tmdb'
     });
-
     saveCollections(collections);
     return true;
   }
@@ -90,181 +71,133 @@
     var collections = getCollections();
     var col = collections[collectionId];
     if (!col) return false;
-
     var found = false;
-    var newMovies = [];
-    for (var i = 0; i < col.movies.length; i++) {
-      if (col.movies[i].id === movieId) {
-        found = true;
-      } else {
-        newMovies.push(col.movies[i]);
-      }
-    }
-
-    if (found) {
-      col.movies = newMovies;
-      saveCollections(collections);
-    }
+    col.movies = col.movies.filter(function(m) { if (m.id === movieId) { found = true; return false; } return true; });
+    if (found) saveCollections(collections);
     return found;
   }
 
-  function updateMovieWatchTime(collectionId, movieId, seconds) {
+  function deleteCollection(collectionId) {
     var collections = getCollections();
-    var col = collections[collectionId];
-    if (!col) return;
-
-    for (var i = 0; i < col.movies.length; i++) {
-      if (col.movies[i].id === movieId) {
-        col.movies[i].watch_time = (col.movies[i].watch_time || 0) + seconds;
-        saveCollections(collections);
-        return;
-      }
-    }
+    if (collections[collectionId] && collections[collectionId].isDefault) return false;
+    delete collections[collectionId];
+    saveCollections(collections);
+    return true;
   }
 
-  function getCollectionsWithStats() {
-    var collections = getCollections();
-    var result = [];
+  function getWatchTime() { return Lampa.Storage.get(TIME_KEY, 0) || 0; }
+  function addWatchTime(s) { Lampa.Storage.set(TIME_KEY, getWatchTime() + s); }
 
-    var keys = Object.keys(collections);
-    for (var i = 0; i < keys.length; i++) {
-      var key = keys[i];
-      var col = collections[key];
-      var totalTime = 0;
-      for (var j = 0; j < col.movies.length; j++) {
-        totalTime += col.movies[j].watch_time || 0;
-      }
-      result.push({
-        id: key,
-        name: col.name,
-        icon: col.icon,
-        count: col.movies.length,
-        totalTime: totalTime
-      });
-    }
-
-    return result;
+  function formatTime(sec) {
+    if (!sec || sec < 1) return '0 мин';
+    var d = Math.floor(sec / 86400), h = Math.floor((sec % 86400) / 3600), m = Math.floor((sec % 3600) / 60);
+    var p = [];
+    if (d > 0) p.push(d + ' дн');
+    if (h > 0) p.push(h + ' ч');
+    if (m > 0) p.push(m + ' мин');
+    return p.join(' ') || '0 мин';
   }
 
   function sortMovies(movies, sortId) {
-    var sorted = movies.slice();
-
+    var s = movies.slice();
     switch (sortId) {
-      case 'date_desc':
-        sorted.sort(function(a, b) { return (b.added_at || 0) - (a.added_at || 0); });
-        break;
-      case 'date_asc':
-        sorted.sort(function(a, b) { return (a.added_at || 0) - (b.added_at || 0); });
-        break;
-      case 'rating_desc':
-        sorted.sort(function(a, b) { return (b.vote_average || 0) - (a.vote_average || 0); });
-        break;
-      case 'rating_asc':
-        sorted.sort(function(a, b) { return (a.vote_average || 0) - (b.vote_average || 0); });
-        break;
-      case 'alpha_asc':
-        sorted.sort(function(a, b) { return (a.title || '').localeCompare(b.title || ''); });
-        break;
-      case 'alpha_desc':
-        sorted.sort(function(a, b) { return (b.title || '').localeCompare(a.title || ''); });
-        break;
+      case 'date_desc':   s.sort(function(a,b){return (b.added_at||0)-(a.added_at||0);}); break;
+      case 'date_asc':    s.sort(function(a,b){return (a.added_at||0)-(b.added_at||0);}); break;
+      case 'rating_desc': s.sort(function(a,b){return (b.vote_average||0)-(a.vote_average||0);}); break;
+      case 'alpha_asc':   s.sort(function(a,b){return (a.title||'').localeCompare(b.title||'');}); break;
     }
-
-    return sorted;
+    return s;
   }
 
-  function getSortId() {
-    return Lampa.Storage.get(SORT_KEY, 'date_desc');
+  function getSortId() { return Lampa.Storage.get(SORT_KEY, 'date_desc'); }
+
+  function posterUrl(movie) {
+    var p = movie.poster_path || '';
+    if (p && !p.startsWith('http')) p = 'https://image.tmdb.org/t/p/w300' + p;
+    return p;
   }
 
-  function setSortId(id) {
-    Lampa.Storage.set(SORT_KEY, id);
-  }
-
-  // ========== Watch Time ==========
-
-  function getWatchTime() {
-    return Lampa.Storage.get(TIME_KEY, 0) || 0;
-  }
-
-  function addWatchTime(seconds) {
-    var current = getWatchTime();
-    Lampa.Storage.set(TIME_KEY, current + seconds);
-  }
-
-  function formatTime(totalSeconds) {
-    if (!totalSeconds || totalSeconds < 1) return '0 мин';
-
-    var days = Math.floor(totalSeconds / 86400);
-    var hours = Math.floor((totalSeconds % 86400) / 3600);
-    var minutes = Math.floor((totalSeconds % 3600) / 60);
-
-    var parts = [];
-    if (days > 0) parts.push(days + ' дн');
-    if (hours > 0) parts.push(hours + ' ч');
-    if (minutes > 0) parts.push(minutes + ' мин');
-
-    return parts.join(' ') || '0 мин';
-  }
-
-  // ========== Collection Card HTML ==========
-
-  function renderCollectionCard(col) {
-    return '<div class="collection-card selector" data-id="' + col.id + '">' +
-      '<div class="collection-card__icon">' + col.icon + '</div>' +
-      '<div class="collection-card__info">' +
-        '<div class="collection-card__name">' + col.name + '</div>' +
-        '<div class="collection-card__count">' + col.count + ' фильмов</div>' +
-        (col.totalTime > 0 ? '<div class="collection-card__time">' + formatTime(col.totalTime) + '</div>' : '') +
-      '</div>' +
-    '</div>';
-  }
-
-  function renderMovieCard(movie) {
-    var poster = movie.poster_path;
-    if (poster && !poster.startsWith('http')) {
-      poster = 'https://image.tmdb.org/t/p/w300' + poster;
+  function splitByType(movies) {
+    var films = [], series = [];
+    for (var i = 0; i < movies.length; i++) {
+      var m = movies[i];
+      if (m.media_type === 'tv' || (m.genre_ids && m.genre_ids.indexOf(18) >= 0)) series.push(m);
+      else films.push(m);
     }
-
-    return '<div class="movie-card selector" data-id="' + movie.id + '">' +
-      '<div class="movie-card__poster" style="background-image:url(' + (poster || '') + ')"></div>' +
-      '<div class="movie-card__info">' +
-        '<div class="movie-card__title">' + (movie.title || '') + '</div>' +
-        '<div class="movie-card__rating">⭐ ' + (movie.vote_average || 0).toFixed(1) + '</div>' +
-        (movie.watch_time > 0 ? '<div class="movie-card__time">🕐 ' + formatTime(movie.watch_time) + '</div>' : '') +
-      '</div>' +
-    '</div>';
+    return { films: films, series: series };
   }
 
   // ========== CSS ==========
 
   function injectStyles() {
     if (document.getElementById('my-collections-styles')) return;
+    var css = ''
 
-    var css = '' +
-      '.collection-card { display:flex; align-items:center; padding:12px 16px; margin:4px 0; border-radius:8px; background:rgba(255,255,255,0.05); cursor:pointer; }' +
-      '.collection-card:hover, .collection-card.focus { background:rgba(255,255,255,0.12); }' +
-      '.collection-card__icon { font-size:28px; margin-right:14px; width:40px; text-align:center; }' +
-      '.collection-card__name { font-size:16px; font-weight:600; color:#fff; }' +
-      '.collection-card__count { font-size:13px; color:rgba(255,255,255,0.5); margin-top:2px; }' +
-      '.collection-card__time { font-size:12px; color:#3bd574; margin-top:2px; }' +
-      '.movie-card { display:inline-block; width:140px; margin:6px; vertical-align:top; cursor:pointer; border-radius:8px; overflow:hidden; background:rgba(255,255,255,0.05); }' +
-      '.movie-card:hover, .movie-card.focus { background:rgba(255,255,255,0.12); }' +
-      '.movie-card__poster { width:140px; height:210px; background-size:cover; background-position:center; background-color:rgba(255,255,255,0.08); }' +
-      '.movie-card__info { padding:8px; }' +
-      '.movie-card__title { font-size:13px; color:#fff; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }' +
-      '.movie-card__rating { font-size:12px; color:#f5c518; margin-top:3px; }' +
-      '.movie-card__time { font-size:11px; color:#3bd574; margin-top:2px; }' +
-      '.my-collections-header { padding:16px; }' +
-      '.my-collections-header__title { font-size:22px; font-weight:700; color:#fff; }' +
-      '.my-collections-header__time { font-size:14px; color:#3bd574; margin-top:4px; }' +
-      '.my-collections-sort { padding:8px 16px; display:flex; align-items:center; gap:8px; }' +
-      '.my-collections-sort__label { font-size:13px; color:rgba(255,255,255,0.5); }' +
-      '.my-collections-sort__btn { padding:4px 12px; border-radius:4px; background:rgba(255,255,255,0.1); color:#fff; font-size:13px; cursor:pointer; }' +
-      '.my-collections-sort__btn.active { background:#3bd574; color:#000; }' +
-      '.my-collections-empty { padding:40px 16px; text-align:center; color:rgba(255,255,255,0.4); font-size:14px; }' +
-      '.my-collections-add-btn { display:flex; align-items:center; justify-content:center; padding:12px; margin:4px 0; border:2px dashed rgba(255,255,255,0.2); border-radius:8px; color:rgba(255,255,255,0.4); cursor:pointer; font-size:14px; }' +
-      '.my-collections-add-btn:hover, .my-collections-add-btn.focus { border-color:#3bd574; color:#3bd574; }';
+    /* Header */
+    + '.mc-page { padding:0 0 60px 0; }'
+    + '.mc-header { display:flex; align-items:center; padding:16px 20px 12px; gap:12px; }'
+    + '.mc-header__back { font-size:24px; color:#fff; cursor:pointer; width:40px; height:40px; display:flex; align-items:center; justify-content:center; border-radius:8px; background:rgba(255,255,255,0.06); }'
+    + '.mc-header__back:hover,.mc-header__back.focus { background:rgba(255,255,255,0.12); }'
+    + '.mc-header__title { font-size:28px; font-weight:700; color:#fff; flex:1; }'
+    + '.mc-header__time { font-size:14px; color:#3bd574; background:rgba(59,213,116,0.1); padding:6px 12px; border-radius:8px; white-space:nowrap; }'
+
+    /* Tabs */
+    + '.mc-tabs { display:flex; gap:10px; padding:0 20px 16px; overflow-x:auto; }'
+    + '.mc-tabs::-webkit-scrollbar { display:none; }'
+    + '.mc-tab { flex-shrink:0; padding:12px 20px; border-radius:10px; background:rgba(255,255,255,0.06); border:2px solid transparent; cursor:pointer; transition:all .15s; min-width:120px; text-align:center; }'
+    + '.mc-tab:hover,.mc-tab.focus { background:rgba(255,255,255,0.1); border-color:rgba(255,255,255,0.1); }'
+    + '.mc-tab.active { background:rgba(255,255,255,0.08); border-color:rgba(255,255,255,0.15); }'
+    + '.mc-tab__name { font-size:14px; color:rgba(255,255,255,0.6); margin-bottom:4px; }'
+    + '.mc-tab.active .mc-tab__name { color:#fff; }'
+    + '.mc-tab__count { font-size:22px; font-weight:700; color:#fff; }'
+    + '.mc-tab__max { font-size:12px; color:rgba(255,255,255,0.3); }'
+
+    /* Section */
+    + '.mc-section { margin-bottom:20px; }'
+    + '.mc-section__head { display:flex; align-items:center; padding:8px 20px 12px; gap:8px; }'
+    + '.mc-section__title { font-size:20px; font-weight:700; color:#fff; flex:1; }'
+    + '.mc-section__more { font-size:13px; color:#3bd574; padding:6px 14px; border-radius:6px; background:rgba(59,213,116,0.1); cursor:pointer; }'
+    + '.mc-section__more:hover,.mc-section__more.focus { background:rgba(59,213,116,0.2); }'
+
+    /* Subcategory row */
+    + '.mc-subcats { display:flex; gap:8px; padding:0 20px 12px; overflow-x:auto; }'
+    + '.mc-subcats::-webkit-scrollbar { display:none; }'
+    + '.mc-subcat { flex-shrink:0; display:flex; gap:8px; align-items:center; padding:8px 14px; border-radius:8px; background:rgba(255,255,255,0.06); cursor:pointer; }'
+    + '.mc-subcat:hover,.mc-subcat.focus { background:rgba(255,255,255,0.12); }'
+    + '.mc-subcat__thumb { width:40px; height:60px; border-radius:4px; background-size:cover; background-position:center; background-color:rgba(255,255,255,0.06); }'
+    + '.mc-subcat__info { display:flex; flex-direction:column; gap:2px; }'
+    + '.mc-subcat__name { font-size:13px; color:rgba(255,255,255,0.5); }'
+    + '.mc-subcat__num { font-size:18px; font-weight:700; color:#fff; }'
+
+    /* Movie row */
+    + '.mc-row { display:flex; gap:14px; padding:0 20px; overflow-x:auto; overflow-y:hidden; scroll-behavior:smooth; }'
+    + '.mc-row::-webkit-scrollbar { display:none; }'
+
+    /* Movie card */
+    + '.mc-card { flex-shrink:0; width:160px; cursor:pointer; position:relative; transition:transform .15s; }'
+    + '.mc-card:hover,.mc-card.focus { transform:scale(1.04); }'
+    + '.mc-card__poster { width:160px; height:240px; border-radius:8px; background-size:cover; background-position:center top; background-color:rgba(255,255,255,0.06); position:relative; overflow:hidden; }'
+    + '.mc-card__badge { position:absolute; top:8px; right:8px; background:rgba(0,0,0,0.75); color:#f5c518; font-size:12px; font-weight:700; padding:3px 7px; border-radius:4px; }'
+    + '.mc-card__icons { position:absolute; bottom:8px; left:8px; display:flex; gap:4px; }'
+    + '.mc-card__icon { width:24px; height:24px; border-radius:4px; background:rgba(0,0,0,0.6); display:flex; align-items:center; justify-content:center; font-size:12px; }'
+    + '.mc-card__title { margin-top:8px; font-size:13px; color:#fff; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }'
+    + '.mc-card__year { margin-top:2px; font-size:12px; color:rgba(255,255,255,0.4); }'
+
+    /* Sort row */
+    + '.mc-sort { display:flex; gap:8px; padding:12px 20px; overflow-x:auto; }'
+    + '.mc-sort::-webkit-scrollbar { display:none; }'
+    + '.mc-sort__btn { flex-shrink:0; padding:8px 16px; border-radius:8px; background:rgba(255,255,255,0.06); color:rgba(255,255,255,0.5); font-size:13px; cursor:pointer; }'
+    + '.mc-sort__btn:hover,.mc-sort__btn.focus { background:rgba(255,255,255,0.1); color:#fff; }'
+    + '.mc-sort__btn.active { background:rgba(59,213,116,0.15); color:#3bd574; }'
+
+    /* Empty */
+    + '.mc-empty { padding:20px; color:rgba(255,255,255,0.3); font-size:14px; text-align:center; }'
+
+    /* Action card (add new) */
+    + '.mc-add { flex-shrink:0; width:160px; height:240px; border-radius:8px; border:2px dashed rgba(255,255,255,0.1); display:flex; flex-direction:column; align-items:center; justify-content:center; gap:8px; color:rgba(255,255,255,0.3); cursor:pointer; transition:all .15s; }'
+    + '.mc-add:hover,.mc-add.focus { border-color:#3bd574; color:#3bd574; }'
+    + '.mc-add__icon { font-size:36px; }'
+    + '.mc-add__text { font-size:13px; }';
 
     var style = document.createElement('style');
     style.id = 'my-collections-styles';
@@ -272,101 +205,85 @@
     document.head.appendChild(style);
   }
 
-  // ========== Plugin Registration ==========
+  // ========== Plugin ==========
 
   function startPlugin() {
     if (window._my_collections_plugin) return;
     window._my_collections_plugin = true;
-
     injectStyles();
 
     Lampa.Manifest.plugins = {
-      type: 'video',
-      version: '1.0.0',
-      name: PLUGIN_NAME,
+      type: 'video', version: '1.2.0', name: PLUGIN_NAME,
       description: 'Закладки, коллекции и таймер просмотра',
       component: 'my_collections',
-
-      onContextMenu: function(obj) {
-        return { name: PLUGIN_NAME, description: '' };
-      },
-
-      onContextLauch: function(obj) {
-        showAddToCollectionDialog(obj);
-      }
+      onContextMenu: function(){ return { name: PLUGIN_NAME, description: '' }; },
+      onContextLauch: function(obj){ showAddToCollectionDialog(obj); }
     };
 
     addMenuButton();
-
-    console.log('[MyCollections] Plugin started');
+    initListener();
   }
-
-  // ========== Menu Button ==========
 
   function addMenuButton() {
     setTimeout(function() {
       var menuList = document.querySelector('.menu__list');
       if (!menuList || document.querySelector('.my-collections-menu-item')) return;
-
-      var menuItem = document.createElement('div');
-      menuItem.className = 'menu__item selector my-collections-menu-item';
-      menuItem.innerHTML =
-        '<div class="menu__item-icon">🎬</div>' +
-        '<div class="menu__item-text">' + PLUGIN_NAME + '</div>';
-
-      menuItem.addEventListener('hover:enter', function() {
-        openCollectionsPage();
-      });
-
-      var firstItem = menuList.querySelector('.menu__item');
-      if (firstItem) {
-        menuList.insertBefore(menuItem, firstItem);
-      } else {
-        menuList.appendChild(menuItem);
-      }
+      var item = document.createElement('div');
+      item.className = 'menu__item selector my-collections-menu-item';
+      item.innerHTML = '<div class="menu__item-icon">🎬</div><div class="menu__item-text">' + PLUGIN_NAME + '</div>';
+      item.addEventListener('hover:enter', function(){ openCollectionsPage(); });
+      var first = menuList.querySelector('.menu__item');
+      if (first) menuList.insertBefore(item, first); else menuList.appendChild(item);
     }, 2000);
   }
 
-  // ========== Add to Collection Dialog ==========
+  function initListener() {
+    var lastActivity = '';
+    Lampa.Activity.listener.follow('complite', function(a) {
+      var comp = a && a.activity && a.activity.component;
+      if (comp === 'full' || (comp && comp.indexOf && comp.indexOf('full') >= 0)) {
+        setTimeout(tryAddCardButton, 600);
+      }
+    });
+  }
+
+  // ========== Add Dialog ==========
 
   function showAddToCollectionDialog(movie) {
     var collections = getCollections();
     var items = [];
-
     var keys = Object.keys(collections);
     for (var i = 0; i < keys.length; i++) {
       var key = keys[i];
       var col = collections[key];
-      var inCollection = isInCollection(key, movie.id);
-
+      var inCol = isInCollection(key, movie.id);
       items.push({
-        title: col.icon + ' ' + col.name + (inCollection ? ' ✓' : ''),
-        subtitle: inCollection ? 'Уже в коллекции' : 'Добавить',
-        _collectionId: key,
-        _movie: movie,
-        _inCollection: inCollection
+        title: col.icon + ' ' + col.name + (inCol ? ' ✓' : ''),
+        subtitle: inCol ? 'Нажми чтобы убрать' : 'Добавить',
+        _id: key, _movie: movie, _in: inCol
       });
     }
-
-    items.push({
-      title: '➕ Создать коллекцию',
-      subtitle: 'Новая пользовательская коллекция',
-      _createNew: true
-    });
+    items.push({ title: '➕ Создать коллекцию', _create: true });
 
     Lampa.Select.show({
-      title: PLUGIN_NAME + ' — Добавить фильм',
+      title: PLUGIN_NAME,
       items: items,
       onSelect: function(item) {
-        if (item._createNew) {
-          showCreateCollectionDialog(movie);
-        } else if (item._inCollection) {
-          removeFromCollection(item._collectionId, item._movie.id);
-          Lampa.Noty.show('Удалено из «' + collections[item._collectionId].name + '»');
-          showAddToCollectionDialog(movie);
+        if (item._create) {
+          var name = prompt('Название коллекции:');
+          if (!name || !name.trim()) return;
+          var cols = getCollections();
+          var newId = 'custom_' + Date.now();
+          cols[newId] = { name: name.trim(), icon: '📁', movies: [] };
+          saveCollections(cols);
+          addToCollection(newId, item._movie);
+          Lampa.Noty.show('Создано: «' + name.trim() + '»');
+        } else if (item._in) {
+          removeFromCollection(item._id, item._movie.id);
+          Lampa.Noty.show('Убрано из «' + collections[item._id].name + '»');
         } else {
-          addToCollection(item._collectionId, item._movie);
-          Lampa.Noty.show('Добавлено в «' + collections[item._collectionId].name + '»');
+          addToCollection(item._id, item._movie);
+          Lampa.Noty.show('Добавлено в «' + collections[item._id].name + '»');
         }
       },
       onBack: function() {
@@ -375,318 +292,471 @@
     });
   }
 
-  function showCreateCollectionDialog(movie) {
-    var name = prompt('Название коллекции:');
-    if (!name || !name.trim()) return;
-
-    var collections = getCollections();
-    var id = 'custom_' + Date.now();
-    collections[id] = { name: name.trim(), icon: '📁', movies: [] };
-    saveCollections(collections);
-
-    addToCollection(id, movie);
-    Lampa.Noty.show('Коллекция «' + name.trim() + '» создана и фильм добавлен');
-  }
-
-  // ========== Collections Page ==========
+  // ========== Main Page ==========
 
   function openCollectionsPage() {
-    var collections = getCollectionsWithStats();
+    var collections = getCollections();
     var totalTime = getWatchTime();
+    var sortId = getSortId();
+    var activeTab = null;
 
-    var items = [];
+    var scroll = new Lampa.Scroll({ mask: true, over: true });
+    scroll.body().addClass('mc-page');
 
-    for (var i = 0; i < collections.length; i++) {
-      var col = collections[i];
-      items.push({
-        title: col.icon + ' ' + col.name,
-        subtitle: col.count + ' фильмов' + (col.totalTime > 0 ? ' · ' + formatTime(col.totalTime) : ''),
-        _collectionId: col.id
-      });
+    /* Header */
+    var header = $(
+      '<div class="mc-header">' +
+        '<div class="mc-header__back selector" data-nav="back">←</div>' +
+        '<div class="mc-header__title">🎬 ' + PLUGIN_NAME + '</div>' +
+        (totalTime > 0 ? '<div class="mc-header__time">⏱ ' + formatTime(totalTime) + '</div>' : '') +
+      '</div>'
+    );
+    scroll.append(header);
+
+    /* Tabs */
+    var tabsEl = $('<div class="mc-tabs"></div>');
+    var keys = Object.keys(collections);
+
+    /* "All" tab */
+    var allCount = 0;
+    for (var i = 0; i < keys.length; i++) allCount += collections[keys[i]].movies.length;
+
+    var allTab = $(
+      '<div class="mc-tab active" data-tab="all">' +
+        '<div class="mc-tab__name">Все</div>' +
+        '<div class="mc-tab__count">' + allCount + ' <span class="mc-tab__max">/ 500</span></div>' +
+      '</div>'
+    );
+    tabsEl.append(allTab);
+
+    for (var i = 0; i < keys.length; i++) {
+      var key = keys[i];
+      var col = collections[key];
+      var tab = $(
+        '<div class="mc-tab" data-tab="' + key + '">' +
+          '<div class="mc-tab__name">' + col.icon + ' ' + col.name + '</div>' +
+          '<div class="mc-tab__count">' + col.movies.length + ' <span class="mc-tab__max">/ 500</span></div>' +
+        '</div>'
+      );
+      tab.data('id', key);
+      tabsEl.append(tab);
     }
 
-    items.push({
-      title: '➕ Создать коллекцию',
-      subtitle: 'Новая пользовательская коллекция',
-      _createNew: true
+    scroll.append(tabsEl);
+
+    /* Sort */
+    var sortEl = $('<div class="mc-sort"></div>');
+    for (var s = 0; s < SORT_OPTIONS.length; s++) {
+      var opt = SORT_OPTIONS[s];
+      var btn = $('<div class="mc-sort__btn' + (opt.id === sortId ? ' active' : '') + '" data-sort="' + opt.id + '">' + opt.name + '</div>');
+      btn.data('sort', opt.id);
+      sortEl.append(btn);
+    }
+    scroll.append(sortEl);
+
+    /* Sections container */
+    var sectionsEl = $('<div></div>');
+    scroll.append(sectionsEl);
+
+    function renderSections() {
+      sectionsEl.empty();
+      var cols = getCollections();
+      var sId = getSortId();
+      var k = Object.keys(cols);
+
+      for (var i = 0; i < k.length; i++) {
+        var id = k[i];
+        var c = cols[id];
+        if (!c.movies.length) continue;
+
+        var sorted = sortMovies(c.movies, sId);
+        var types = splitByType(sorted);
+
+        var section = $('<div class="mc-section" data-section="' + id + '"></div>');
+
+        /* Section header */
+        var head = $(
+          '<div class="mc-section__head">' +
+            '<div class="mc-section__title">' + c.icon + ' ' + c.name + '</div>' +
+            '<div class="mc-section__more selector" data-section-more="' + id + '">Еще</div>' +
+          '</div>'
+        );
+        section.append(head);
+
+        /* Subcategories */
+        var subcats = $('<div class="mc-subcats"></div>');
+        if (types.films.length) {
+          var filmThumb = types.films[0] ? posterUrl(types.films[0]) : '';
+          subcats.append($(
+            '<div class="mc-subcat selector" data-sub="films_' + id + '">' +
+              '<div class="mc-subcat__thumb" style="background-image:url(' + (filmThumb || '') + ')"></div>' +
+              '<div class="mc-subcat__info"><div class="mc-subcat__name">Фильмы</div><div class="mc-subcat__num">' + types.films.length + '</div></div>' +
+            '</div>'
+          ));
+        }
+        if (types.series.length) {
+          var seriesThumb = types.series[0] ? posterUrl(types.series[0]) : '';
+          subcats.append($(
+            '<div class="mc-subcat selector" data-sub="series_' + id + '">' +
+              '<div class="mc-subcat__thumb" style="background-image:url(' + (seriesThumb || '') + ')"></div>' +
+              '<div class="mc-subcat__info"><div class="mc-subcat__name">Сериалы</div><div class="mc-subcat__num">' + types.series.length + '</div></div>' +
+            '</div>'
+          ));
+        }
+        section.append(subcats);
+
+        /* Movie row */
+        var row = $('<div class="mc-row"></div>');
+        for (var j = 0; j < sorted.length && j < 12; j++) {
+          var m = sorted[j];
+          row.append(createCard(m, id));
+        }
+        section.append(row);
+
+        sectionsEl.append(section);
+      }
+
+      if (!sectionsEl.children().length) {
+        sectionsEl.append($('<div class="mc-empty">Пока пусто. Добавляйте фильмы из карточек.</div>'));
+      }
+    }
+
+    function createCard(m, collectionId) {
+      var url = posterUrl(m);
+      var year = (m.release_date || '').substring(0, 4);
+      var rating = (m.vote_average || 0).toFixed(1);
+      var icons = '';
+      if (isInCollection('watched', m.id)) icons += '<div class="mc-card__icon">👁</div>';
+      if (isInCollection('favorite', m.id)) icons += '<div class="mc-card__icon">❤️</div>';
+      if (isInCollection('will_watch', m.id)) icons += '<div class="mc-card__icon">👀</div>';
+      if (isInCollection('later', m.id)) icons += '<div class="mc-card__icon">⏰</div>';
+
+      return $(
+        '<div class="mc-card selector" data-mid="' + m.id + '" data-col="' + collectionId + '">' +
+          '<div class="mc-card__poster" style="background-image:url(' + (url || '') + ')">' +
+            (m.vote_average > 0 ? '<div class="mc-card__badge">' + rating + '</div>' : '') +
+            (icons ? '<div class="mc-card__icons">' + icons + '</div>' : '') +
+          '</div>' +
+          '<div class="mc-card__title">' + (m.title || '') + '</div>' +
+          '<div class="mc-card__year">' + year + '</div>' +
+        '</div>'
+      ).data('movie', m).data('collection', collectionId);
+    }
+
+    renderSections();
+
+    /* Controller */
+    Lampa.Controller.add('mc_main', {
+      toggle: function() {
+        Lampa.Controller.collectionSet(scroll.render(), scroll.render());
+        Lampa.Controller.collectionFocus(false, scroll.render());
+      },
+      up: function() {
+        if (Navigator.canmove('up')) Navigator.move('up');
+        else Lampa.Controller.toggle('head');
+      },
+      down: function() { Navigator.move('down'); },
+      right: function() { Navigator.move('right'); },
+      left: function() {
+        if (Navigator.canmove('left')) Navigator.move('left');
+        else Lampa.Controller.toggle('menu');
+      },
+      back: function() { Lampa.Activity.backward(); }
     });
 
-    Lampa.Select.show({
-      title: PLUGIN_NAME + (totalTime > 0 ? ' · ' + formatTime(totalTime) : ''),
-      items: items,
-      onSelect: function(item) {
-        if (item._createNew) {
-          var name = prompt('Название коллекции:');
-          if (!name || !name.trim()) return;
-          var cols = getCollections();
-          var newId = 'custom_' + Date.now();
-          cols[newId] = { name: name.trim(), icon: '📁', movies: [] };
-          saveCollections(cols);
-          Lampa.Noty.show('Коллекция «' + name.trim() + '» создана');
-          openCollectionsPage();
-        } else {
-          openCollectionMovies(item._collectionId);
-        }
-      },
-      onBack: function() {
-        try { Lampa.Controller.toggle('menu'); } catch(e) {}
+    /* Events */
+    scroll.render().on('hover:enter', '[data-nav="back"]', function() {
+      Lampa.Activity.backward();
+    });
+
+    scroll.render().on('hover:enter', '.mc-tab[data-tab]', function() {
+      var id = $(this).data('id') || 'all';
+      if (id === 'all') {
+        renderSections();
+      } else {
+        openCollectionMovies(id);
       }
     });
+
+    scroll.render().on('hover:enter', '.mc-sort__btn[data-sort]', function() {
+      var id = $(this).data('sort');
+      Lampa.Storage.set(SORT_KEY, id);
+      sortEl.find('.mc-sort__btn').removeClass('active');
+      $(this).addClass('active');
+      renderSections();
+      scroll.update();
+    });
+
+    scroll.render().on('hover:enter', '[data-section-more]', function() {
+      openCollectionMovies($(this).data('section-more'));
+    });
+
+    scroll.render().on('hover:enter', '.mc-card[data-mid]', function() {
+      var movie = $(this).data('movie');
+      var col = $(this).data('collection');
+      if (movie) showMovieActions(col, movie);
+    });
+
+    scroll.render().on('hover:enter', '.mc-subcat[data-sub]', function() {
+      var sub = $(this).data('sub');
+      var parts = sub.split('_');
+      var type = parts[0];
+      var colId = parts.slice(1).join('_');
+      openCollectionMovies(colId, type);
+    });
+
+    Lampa.Activity.push({
+      title: PLUGIN_NAME,
+      component: 'mc_main',
+      onBack: function() { Lampa.Controller.toggle('menu'); }
+    });
+
+    setTimeout(function() {
+      Lampa.Controller.toggle('mc_main');
+      scroll.update();
+    }, 100);
   }
 
-  function openCollectionMovies(collectionId) {
+  // ========== Collection Movies Page ==========
+
+  function openCollectionMovies(collectionId, filterType) {
     var collections = getCollections();
     var col = collections[collectionId];
     if (!col) return;
 
     var sortId = getSortId();
     var sorted = sortMovies(col.movies, sortId);
-    var items = [];
+    if (filterType === 'films') sorted = sorted.filter(function(m) { return m.media_type !== 'tv'; });
+    else if (filterType === 'series') sorted = sorted.filter(function(m) { return m.media_type === 'tv'; });
+    var isCustom = collectionId.indexOf('custom_') === 0;
 
-    for (var i = 0; i < sorted.length; i++) {
-      var movie = sorted[i];
-      items.push({
-        title: (movie.title || 'Без названия'),
-        subtitle: '⭐ ' + (movie.vote_average || 0).toFixed(1) +
-                  (movie.release_date ? ' · ' + movie.release_date.substring(0, 4) : '') +
-                  (movie.watch_time > 0 ? ' · 🕐 ' + formatTime(movie.watch_time) : ''),
-        _movie: movie
-      });
-    }
+    var scroll = new Lampa.Scroll({ mask: true, over: true });
+    scroll.body().addClass('mc-page');
 
-    if (!items.length) {
-      items.push({
-        title: 'Пусто',
-        subtitle: 'Добавьте фильмы из карточек фильмов',
-        _empty: true
-      });
-    }
+    /* Header */
+    scroll.append($(
+      '<div class="mc-header">' +
+        '<div class="mc-header__back selector" data-nav="back">←</div>' +
+        '<div class="mc-header__title">' + col.icon + ' ' + col.name + ' <span style="font-size:14px;color:rgba(255,255,255,0.4);font-weight:400;">(' + sorted.length + ')</span></div>' +
+      '</div>'
+    ));
 
-    var sortName = '';
+    /* Sort */
+    var sortEl = $('<div class="mc-sort"></div>');
     for (var s = 0; s < SORT_OPTIONS.length; s++) {
-      if (SORT_OPTIONS[s].id === sortId) { sortName = SORT_OPTIONS[s].name; break; }
+      var opt = SORT_OPTIONS[s];
+      sortEl.append($('<div class="mc-sort__btn' + (opt.id === sortId ? ' active' : '') + '" data-sort="' + opt.id + '">' + opt.name + '</div>').data('sort', opt.id));
+    }
+    scroll.append(sortEl);
+
+    /* Row */
+    var row = $('<div class="mc-row"></div>');
+    for (var j = 0; j < sorted.length; j++) {
+      row.append(createCardSimple(sorted[j], collectionId));
+    }
+    if (!sorted.length) row.append($('<div class="mc-empty">Пусто</div>'));
+    scroll.append(row);
+
+    /* Actions */
+    if (isCustom) {
+      var actions = $(
+        '<div style="padding:20px;display:flex;gap:10px;">' +
+          '<div class="mc-sort__btn selector" data-action="delete" style="color:#e55;">🗑 Удалить коллекцию</div>' +
+        '</div>'
+      );
+      scroll.append(actions);
     }
 
-    Lampa.Select.show({
-      title: col.icon + ' ' + col.name + ' (' + col.movies.length + ')',
-      items: items,
-      onSelect: function(item) {
-        if (item._empty) return;
-        showMovieActions(collectionId, item._movie);
+    function createCardSimple(m, colId) {
+      var url = posterUrl(m);
+      var year = (m.release_date || '').substring(0, 4);
+      var rating = (m.vote_average || 0).toFixed(1);
+      return $(
+        '<div class="mc-card selector" data-mid="' + m.id + '" data-col="' + colId + '">' +
+          '<div class="mc-card__poster" style="background-image:url(' + (url || '') + ')">' +
+            (m.vote_average > 0 ? '<div class="mc-card__badge">' + rating + '</div>' : '') +
+          '</div>' +
+          '<div class="mc-card__title">' + (m.title || '') + '</div>' +
+          '<div class="mc-card__year">' + year + '</div>' +
+        '</div>'
+      ).data('movie', m).data('collection', colId);
+    }
+
+    /* Controller */
+    Lampa.Controller.add('mc_movies', {
+      toggle: function() {
+        Lampa.Controller.collectionSet(scroll.render(), scroll.render());
+        Lampa.Controller.collectionFocus(false, scroll.render());
       },
-      onBack: function() {
-        openCollectionsPage();
+      up: function() {
+        if (Navigator.canmove('up')) Navigator.move('up');
+        else Lampa.Controller.toggle('head');
+      },
+      down: function() { Navigator.move('down'); },
+      right: function() { Navigator.move('right'); },
+      left: function() {
+        if (Navigator.canmove('left')) Navigator.move('left');
+        else Lampa.Controller.toggle('menu');
+      },
+      back: function() { Lampa.Activity.backward(); }
+    });
+
+    scroll.render().on('hover:enter', '[data-nav="back"]', function() { Lampa.Activity.backward(); });
+    scroll.render().on('hover:enter', '.mc-sort__btn[data-sort]', function() {
+      Lampa.Storage.set(SORT_KEY, $(this).data('sort'));
+      Lampa.Activity.backward();
+      setTimeout(function() { openCollectionMovies(collectionId, filterType); }, 100);
+    });
+    scroll.render().on('hover:enter', '.mc-card[data-mid]', function() {
+      var movie = $(this).data('movie');
+      var colId = $(this).data('collection');
+      if (movie) showMovieActions(colId, movie);
+    });
+    scroll.render().on('hover:enter', '[data-action="delete"]', function() {
+      if (confirm('Удалить коллекцию «' + col.name + '»?')) {
+        deleteCollection(collectionId);
+        Lampa.Noty.show('Коллекция удалена');
+        Lampa.Activity.backward();
       }
     });
+
+    Lampa.Activity.push({
+      title: col.name,
+      component: 'mc_movies',
+      onBack: function() { Lampa.Activity.backward(); }
+    });
+
+    setTimeout(function() {
+      Lampa.Controller.toggle('mc_movies');
+      scroll.update();
+    }, 100);
   }
+
+  // ========== Movie Actions ==========
 
   function showMovieActions(collectionId, movie) {
-    var collections = getCollections();
-    var col = collections[collectionId];
-
-    Lampa.Select.show({
-      title: movie.title || 'Фильм',
-      items: [
-        { title: '▶️ Смотреть', _action: 'play' },
-        { title: '🔄 Переместить в...', _action: 'move' },
-        { title: '🗑 Удалить из коллекции', _action: 'remove' },
-        { title: 'ℹ️ Подробнее', _action: 'info' }
-      ],
-      onSelect: function(item) {
-        if (item._action === 'play') {
-          playMovie(movie);
-        } else if (item._action === 'remove') {
-          removeFromCollection(collectionId, movie.id);
-          Lampa.Noty.show('Удалено из «' + col.name + '»');
-          openCollectionMovies(collectionId);
-        } else if (item._action === 'move') {
-          showMoveDialog(collectionId, movie);
-        } else if (item._action === 'info') {
-          showMovieInfo(movie);
-        }
-      },
-      onBack: function() {
-        openCollectionMovies(collectionId);
-      }
-    });
-  }
-
-  function showMoveDialog(fromCollectionId, movie) {
-    var collections = getCollections();
-    var items = [];
-
-    var keys = Object.keys(collections);
-    for (var i = 0; i < keys.length; i++) {
-      var key = keys[i];
-      if (key === fromCollectionId) continue;
-      var col = collections[key];
-      items.push({
-        title: col.icon + ' ' + col.name,
-        _targetId: key
-      });
+    var cols = getCollections();
+    var inCols = [];
+    var k = Object.keys(cols);
+    for (var i = 0; i < k.length; i++) {
+      if (isInCollection(k[i], movie.id)) inCols.push(cols[k[i]].icon + ' ' + cols[k[i]].name);
     }
 
+    var items = [
+      { title: '📄 Подробнее', _a: 'info' },
+      { title: '🔄 Переместить...', _a: 'move' },
+      { title: '🗑 Удалить', _a: 'remove' }
+    ];
+
     Lampa.Select.show({
-      title: 'Переместить «' + (movie.title || '') + '» в...',
+      title: (movie.title || 'Фильм') + (inCols.length ? ' [' + inCols.join(', ') + ']' : ''),
       items: items,
       onSelect: function(item) {
-        removeFromCollection(fromCollectionId, movie.id);
-        addToCollection(item._targetId, movie);
-        Lampa.Noty.show('Перемещено в «' + collections[item._targetId].name + '»');
-        openCollectionMovies(fromCollectionId);
+        if (item._a === 'info') {
+          var card = {
+            id: movie.id, title: movie.title || '',
+            original_title: movie.original_title || '',
+            poster_path: movie.poster_path || '',
+            backdrop_path: movie.backdrop_path || '',
+            release_date: movie.release_date || '',
+            vote_average: movie.vote_average || 0,
+            vote_count: movie.vote_count || 0,
+            overview: movie.overview || '',
+            genre_ids: movie.genre_ids || [],
+            source: movie.source || 'tmdb',
+            media_type: movie.media_type || 'movie'
+          };
+          Lampa.Activity.push({ title: card.title, component: 'full', card: card, data: { movie: card } });
+        } else if (item._a === 'remove') {
+          removeFromCollection(collectionId, movie.id);
+          Lampa.Noty.show('Удалено из коллекции');
+          Lampa.Activity.backward();
+          setTimeout(function() { openCollectionMovies(collectionId); }, 100);
+        } else if (item._a === 'move') {
+          showMoveDialog(collectionId, movie);
+        }
       },
-      onBack: function() {
-        showMovieActions(fromCollectionId, movie);
-      }
+      onBack: function() { openCollectionMovies(collectionId); }
     });
   }
 
-  function showMovieInfo(movie) {
-    Lampa.Noty.show(
-      (movie.title || 'Без названия') +
-      ' ⭐' + (movie.vote_average || 0).toFixed(1) +
-      (movie.release_date ? ' (' + movie.release_date.substring(0, 4) + ')' : '') +
-      (movie.watch_time > 0 ? ' — Просмотрено: ' + formatTime(movie.watch_time) : '')
-    );
-  }
-
-  // ========== Play Movie ==========
-
-  function playMovie(movie) {
-    window._collection_current_movie = movie;
-    window._collection_watch_start = Date.now();
-
-    Lampa.Noty.show('Запуск: ' + (movie.title || ''));
-
-    var hash = 'collection_' + movie.id;
-    var timeline = Lampa.Timeline.view(hash);
-
-    var play = {
-      url: '',
-      type: 'mp4',
-      title: movie.title || '',
-      timeline: timeline,
-      subtitles: []
-    };
-
-    Lampa.Player.play(play);
-    Lampa.Player.playlist([play]);
-
-    startWatchTimer(movie);
-  }
-
-  function startWatchTimer(movie) {
-    if (window._collection_watch_interval) {
-      clearInterval(window._collection_watch_interval);
+  function showMoveDialog(fromId, movie) {
+    var collections = getCollections();
+    var items = [];
+    var keys = Object.keys(collections);
+    for (var i = 0; i < keys.length; i++) {
+      if (keys[i] === fromId) continue;
+      var c = collections[keys[i]];
+      items.push({ title: c.icon + ' ' + c.name, _id: keys[i] });
     }
-
-    window._collection_watch_interval = setInterval(function() {
-      addWatchTime(3);
-
-      var collections = getCollections();
-      var keys = Object.keys(collections);
-      for (var i = 0; i < keys.length; i++) {
-        var col = collections[keys[i]];
-        for (var j = 0; j < col.movies.length; j++) {
-          if (col.movies[j].id === movie.id) {
-            col.movies[j].watch_time = (col.movies[j].watch_time || 0) + 3;
-            saveCollections(collections);
-            return;
-          }
-        }
-      }
-    }, 3000);
-
-    Lampa.Player.on('close', function onClose() {
-      clearInterval(window._collection_watch_interval);
-      window._collection_watch_interval = null;
-      window._collection_current_movie = null;
-      Lampa.Player.off('close', onClose);
+    Lampa.Select.show({
+      title: 'Переместить «' + (movie.title || '') + '»',
+      items: items,
+      onSelect: function(item) {
+        removeFromCollection(fromId, movie.id);
+        addToCollection(item._id, movie);
+        Lampa.Noty.show('Перемещено');
+        Lampa.Activity.backward();
+        setTimeout(function() { openCollectionMovies(fromId); }, 100);
+      },
+      onBack: function() { showMovieActions(fromId, movie); }
     });
   }
 
   // ========== Card Button ==========
 
-  var _cardButtonAdded = false;
+  var _lastFullCard = null;
 
   function tryAddCardButton() {
-    if (_cardButtonAdded) return;
-
     try {
       var active = Lampa.Activity.active();
-      if (!active || active.component !== 'full') return;
+      if (!active) return;
+      var comp = active.activity && active.activity.component;
+      if (comp !== 'full' && (!comp || comp.indexOf('full') < 0)) return;
 
       var movie = active.card || (active.data && active.data.movie);
       if (!movie || !movie.id) return;
+      if (_lastFullCard && _lastFullCard.id === movie.id) return;
 
       var render = active.activity.render();
       if (!render || !render.length) return;
-      if (render.find('.my-collections-btn').length) { _cardButtonAdded = true; return; }
+      if (render.find('.my-collections-btn').length) { _lastFullCard = movie; return; }
 
       var inAny = false;
-      var collections = getCollections();
-      var keys = Object.keys(collections);
-      for (var i = 0; i < keys.length; i++) {
-        if (isInCollection(keys[i], movie.id)) { inAny = true; break; }
+      var cols = getCollections();
+      var k = Object.keys(cols);
+      for (var i = 0; i < k.length; i++) {
+        if (isInCollection(k[i], movie.id)) { inAny = true; break; }
       }
 
-      var btn = $('<div class="full-start__button selector my-collections-btn">' +
-        '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">' +
-          '<path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/>' +
-        '</svg>' +
-        '<span>' + PLUGIN_NAME + (inAny ? ' ✓' : '') + '</span>' +
-      '</div>');
+      var btn = $('<div class="full-start__button selector my-collections-btn"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg><span>' + PLUGIN_NAME + (inAny ? ' ✓' : '') + '</span></div>');
 
       btn.on('hover:enter click', function() {
         showAddToCollectionDialog(movie);
       });
 
-      var targets = [
-        '.full-start__buttons .full-start__button:last',
-        '.view--torrent',
-        '.view--online',
-        '.full-start__buttons'
-      ];
-
+      var targets = ['.full-start__buttons .full-start__button:last', '.full-start__buttons'];
       for (var t = 0; t < targets.length; t++) {
         var el = render.find(targets[t]);
         if (el.length) {
           el.first().after(btn);
-          _cardButtonAdded = true;
+          _lastFullCard = movie;
           return;
         }
       }
-    } catch (e) {}
+    } catch(e) {}
   }
 
-  // ========== Initialization ==========
-
-  function init() {
-    Lampa.Listener.follow('full', function(e) {
-      if (e.type === 'complite') {
-        _cardButtonAdded = false;
-        setTimeout(tryAddCardButton, 500);
-      }
-    });
-
-    setTimeout(tryAddCardButton, 2000);
-  }
-
-  // ========== Start ==========
+  // ========== Init ==========
 
   function start() {
     startPlugin();
-    init();
   }
 
-  if (typeof Lampa !== 'undefined') {
-    start();
-  } else {
-    var waitInterval = setInterval(function() {
-      if (typeof Lampa !== 'undefined') {
-        clearInterval(waitInterval);
-        start();
-      }
+  if (typeof Lampa !== 'undefined') start();
+  else {
+    var w = setInterval(function() {
+      if (typeof Lampa !== 'undefined') { clearInterval(w); start(); }
     }, 500);
   }
 
