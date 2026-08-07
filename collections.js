@@ -277,26 +277,103 @@
       items: items,
       onSelect: function(item) {
         if (item._create) {
-          var name = prompt('Название коллекции:');
-          if (!name || !name.trim()) return;
-          var cols = getCollections();
-          var newId = 'custom_' + Date.now();
-          cols[newId] = { name: name.trim(), icon: '📁', movies: [] };
-          saveCollections(cols);
-          addToCollection(newId, item._movie);
-          Lampa.Noty.show('Создано: «' + name.trim() + '»');
+          showCreateCollectionDialog(item._movie);
         } else if (item._in) {
           removeFromCollection(item._id, item._movie.id);
           Lampa.Noty.show('Убрано из «' + collections[item._id].name + '»');
+          refreshCardButton();
         } else {
           addToCollection(item._id, item._movie);
           Lampa.Noty.show('Добавлено в «' + collections[item._id].name + '»');
+          refreshCardButton();
         }
       },
       onBack: function() {
         try { Lampa.Activity.backward(); } catch(e) { Lampa.Controller.toggle('content'); }
       }
     });
+  }
+
+  function showCreateCollectionDialog(movie) {
+    var predefinedNames = [
+      { title: '🎬 Документальные', name: 'Документальные', icon: '🎬' },
+      { title: '😂 Комедии', name: 'Комедии', icon: '😂' },
+      { title: '😱 Ужасы', name: 'Ужасы', icon: '😱' },
+      { title: '🚀 Фантастика', name: 'Фантастика', icon: '🚀' },
+      { title: '💕 Мелодрамы', name: 'Мелодрамы', icon: '💕' },
+      { title: '🏋️ Боевики', name: 'Боевики', icon: '🏋️' },
+      { title: '🔎 Детективы', name: 'Детективы', icon: '🔎' },
+      { title: '🎭 Драмы', name: 'Драмы', icon: '🎭' },
+      { title: '📁 Своя коллекция', name: '', icon: '📁' }
+    ];
+
+    Lampa.Select.show({
+      title: 'Новая коллекция',
+      items: predefinedNames.map(function(n) {
+        return { title: n.title, _name: n.name, _icon: n.icon };
+      }),
+      onSelect: function(item) {
+        if (item._name) {
+          createAndAdd(item._name, item._icon, movie);
+        } else {
+          showCustomNameDialog(movie);
+        }
+      },
+      onBack: function() { showAddToCollectionDialog(movie); }
+    });
+  }
+
+  function showCustomNameDialog(movie) {
+    var name = '';
+    var letters = 'АБВГДЕЖЗИКЛМНОПРСТУФХЦЧШЩЭЮЯабвгдежзиклмнопрстуфхцчшщэюя 0123456789';
+    var currentIdx = 0;
+    var currentChar = 'А';
+
+    function render() {
+      var items = [];
+      for (var i = 0; i < letters.length; i++) {
+        items.push({ title: letters[i], _char: letters[i], _add: true });
+      }
+      items.push({ title: '⌫ Удалить', _del: true });
+      items.push({ title: '✅ Готово: ' + (name || '...'), _done: true });
+
+      Lampa.Select.show({
+        title: 'Имя: ' + (name || '_'),
+        items: items,
+        onSelect: function(sel) {
+          if (sel._add) {
+            name += sel._char;
+            render();
+          } else if (sel._del) {
+            name = name.slice(0, -1);
+            render();
+          } else if (sel._done && name.trim()) {
+            createAndAdd(name.trim(), '📁', movie);
+          }
+        },
+        onBack: function() {
+          if (name.length > 0) { name = name.slice(0, -1); render(); }
+          else showCreateCollectionDialog(movie);
+        }
+      });
+    }
+
+    render();
+  }
+
+  function createAndAdd(name, icon, movie) {
+    var cols = getCollections();
+    var newId = 'custom_' + Date.now();
+    cols[newId] = { name: name, icon: icon || '📁', movies: [] };
+    saveCollections(cols);
+    addToCollection(newId, movie);
+    Lampa.Noty.show('Создано: «' + name + '»');
+    refreshCardButton();
+  }
+
+  function refreshCardButton() {
+    _lastFullCard = null;
+    setTimeout(tryAddCardButton, 300);
   }
 
   // ========== Main Page ==========
