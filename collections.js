@@ -238,6 +238,14 @@
   }
 
   function initListener() {
+    if (typeof Lampa.Listener !== 'undefined') {
+      Lampa.Listener.follow('full', function(e) {
+        if (e.type === 'complite' || e.type === 'start') {
+          setTimeout(tryAddCardButton, 500);
+          setTimeout(tryAddCardButton, 1500);
+        }
+      });
+    }
     Lampa.Activity.listener.follow('complite', function(a) {
       setTimeout(tryAddCardButton, 800);
     });
@@ -729,7 +737,6 @@
   // ========== Card Button ==========
 
   var _lastFullCard = null;
-
   function tryAddCardButton() {
     try {
       var active = Lampa.Activity.active();
@@ -743,6 +750,8 @@
       if (!render || !render.length) return;
       if (render.find('.my-collections-btn').length) { _lastFullCard = movie; return; }
 
+      console.log('[MC] Trying to add button for:', movie.title, 'render children:', render.children().length);
+
       var inAny = false;
       var cols = getCollections();
       var k = Object.keys(cols);
@@ -750,8 +759,9 @@
         if (isInCollection(k[i], movie.id)) { inAny = true; break; }
       }
 
-      var btn = $('<div class="full-start__button selector my-collections-btn"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg><span>' + PLUGIN_NAME + (inAny ? ' ✓' : '') + '</span></div>');
+      var btnHtml = '<div class="full-start__button selector my-collections-btn" style="display:inline-flex;align-items:center;gap:8px;cursor:pointer;padding:8px 16px;border-radius:8px;background:rgba(255,255,255,0.1);margin:4px;"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg><span>' + PLUGIN_NAME + (inAny ? ' ✓' : '') + '</span></div>';
 
+      var btn = $(btnHtml);
       btn.on('hover:enter click', function() {
         showAddToCollectionDialog(movie);
       });
@@ -762,17 +772,47 @@
         '.full-start__buttons',
         '.full-start__left',
         '.detail-page__buttons',
-        '.card--more'
+        '.card--more',
+        '.buttons-full',
+        '.full-start__tag',
+        '.full__title + .full-start__buttons',
+        '.full-start__descr ~ div'
       ];
+
+      var inserted = false;
       for (var t = 0; t < targets.length; t++) {
         var el = render.find(targets[t]);
         if (el.length) {
-          el.first().after(btn);
-          _lastFullCard = movie;
-          return;
+          el.last().after(btn);
+          inserted = true;
+          console.log('[MC] Inserted after:', targets[t]);
+          break;
         }
       }
-    } catch(e) {}
+
+      if (!inserted) {
+        var anyBtn = render.find('.selector').filter(function() {
+          return $(this).text().indexOf('Торрент') >= 0 || $(this).text().indexOf('Онлайн') >= 0 || $(this).text().indexOf('Трейлер') >= 0;
+        }).first();
+        if (anyBtn.length) {
+          anyBtn.parent().append(btn);
+          inserted = true;
+          console.log('[MC] Inserted after torrent/online button');
+        }
+      }
+
+      if (!inserted) {
+        var desc = render.find('.full-start__text, .full__description, .detail-page__text');
+        if (desc.length) {
+          desc.first().after(btn);
+          inserted = true;
+          console.log('[MC] Inserted after description');
+        }
+      }
+
+      if (inserted) _lastFullCard = movie;
+      else console.log('[MC] Could not find insertion point');
+    } catch(e) { console.log('[MC] Error:', e); }
   }
 
   // ========== Init ==========
