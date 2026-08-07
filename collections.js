@@ -256,6 +256,8 @@
 
   // ========== Add Dialog ==========
 
+  function safeBack() {}
+
   function showAddToCollectionDialog(movie) {
     var collections = getCollections();
     var items = [];
@@ -288,9 +290,7 @@
           refreshCardButton();
         }
       },
-      onBack: function() {
-        try { Lampa.Activity.backward(); } catch(e) { Lampa.Controller.toggle('content'); }
-      }
+      onBack: safeBack
     });
   }
 
