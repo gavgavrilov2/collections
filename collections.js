@@ -39,18 +39,21 @@
   function getCollections() {
     if (_collectionsCache) return _collectionsCache;
     try {
-      var raw = localStorage.getItem(STORAGE_KEY);
-      if (raw) {
-        var data = JSON.parse(raw);
-        if (data && typeof data === 'object' && data.watched) { _collectionsCache = data; return data; }
+      var data2 = Lampa.Storage.get(STORAGE_KEY);
+      if (data2 && typeof data2 === 'object' && data2.watched) {
+        _collectionsCache = data2;
+        return data2;
       }
     } catch(e) {}
     try {
-      var data2 = Lampa.Storage.get(STORAGE_KEY);
-      if (data2 && typeof data2 === 'object' && data2.watched) {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(data2));
-        _collectionsCache = data2;
-        return data2;
+      var raw = localStorage.getItem(STORAGE_KEY);
+      if (raw) {
+        var data = JSON.parse(raw);
+        if (data && typeof data === 'object' && data.watched) {
+          Lampa.Storage.set(STORAGE_KEY, data);
+          _collectionsCache = data;
+          return data;
+        }
       }
     } catch(e) {}
     var data = JSON.parse(JSON.stringify(DEFAULT_COLLECTIONS));
@@ -60,8 +63,8 @@
 
   function saveCollections(data) {
     _collectionsCache = data;
-    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); } catch(e) {}
     try { Lampa.Storage.set(STORAGE_KEY, data); } catch(e) {}
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); } catch(e) {}
   }
 
   function isInCollection(collectionId, movieId) {
@@ -278,7 +281,7 @@
     injectStyles();
 
     Lampa.Manifest.plugins = {
-      type: 'video', version: '1.11.0', name: PLUGIN_NAME,
+      type: 'video', version: '1.12.0', name: PLUGIN_NAME,
       description: 'Закладки, коллекции и таймер просмотра',
       component: 'my_collections',
       onContextMenu: function(){ return { name: PLUGIN_NAME, description: '' }; },
@@ -435,13 +438,6 @@
     var scroll = new Lampa.Scroll({ mask: true, over: true });
     scroll.body().addClass('mc-page');
 
-    /* Header */
-    scroll.append($(
-      '<div class="mc-header">' +
-        '<div class="mc-header__title">' + PLUGIN_NAME + '</div>' +
-      '</div>'
-    ));
-
     /* Stats */
     var allMovies = [];
     var ks = Object.keys(collections);
@@ -470,7 +466,7 @@
     for (var i = 0; i < keys.length; i++) allCount += collections[keys[i]].movies.length;
 
     tabsEl.append($(
-      '<div class="mc-tab' + (activeFilter === 'all' ? ' active' : '') + '" data-tab="all">' +
+      '<div class="mc-tab selector' + (activeFilter === 'all' ? ' active' : '') + '" data-tab="all">' +
         '<div class="mc-tab__name">Все</div>' +
         '<div class="mc-tab__count">' + allCount + ' <span class="mc-tab__max">/ 500</span></div>' +
       '</div>'
@@ -480,7 +476,7 @@
       var key = keys[i];
       var col = collections[key];
       tabsEl.append($(
-        '<div class="mc-tab' + (activeFilter === key ? ' active' : '') + '" data-tab="' + key + '">' +
+        '<div class="mc-tab selector' + (activeFilter === key ? ' active' : '') + '" data-tab="' + key + '">' +
           '<div class="mc-tab__name">' + col.name + '</div>' +
           '<div class="mc-tab__count">' + col.movies.length + ' <span class="mc-tab__max">/ 500</span></div>' +
         '</div>'
@@ -492,7 +488,7 @@
     var sortEl = $('<div class="mc-sort"></div>');
     for (var s = 0; s < SORT_OPTIONS.length; s++) {
       var opt = SORT_OPTIONS[s];
-      sortEl.append($('<div class="mc-sort__btn' + (opt.id === sortId ? ' active' : '') + '" data-sort="' + opt.id + '">' + opt.name + '</div>'));
+      sortEl.append($('<div class="mc-sort__btn selector' + (opt.id === sortId ? ' active' : '') + '" data-sort="' + opt.id + '">' + opt.name + '</div>'));
     }
     scroll.append(sortEl);
 
@@ -502,7 +498,7 @@
     scaleEl.append($('<div class="mc-scale__label">Размер:</div>'));
     for (var sc = 0; sc < SCALE_LEVELS.length; sc++) {
       var sl = SCALE_LEVELS[sc];
-      scaleEl.append($('<div class="mc-scale__btn' + (sl.id === scaleId ? ' active' : '') + '" data-scale="' + sl.id + '">' + sl.label + '</div>'));
+      scaleEl.append($('<div class="mc-scale__btn selector' + (sl.id === scaleId ? ' active' : '') + '" data-scale="' + sl.id + '">' + sl.label + '</div>'));
     }
     scroll.append(scaleEl);
 
