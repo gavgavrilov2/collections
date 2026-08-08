@@ -39,21 +39,21 @@
   function getCollections() {
     if (_collectionsCache) return _collectionsCache;
     try {
-      var data2 = Lampa.Storage.get(STORAGE_KEY);
-      if (data2 && typeof data2 === 'object' && data2.watched) {
-        _collectionsCache = data2;
-        return data2;
-      }
-    } catch(e) {}
-    try {
       var raw = localStorage.getItem(STORAGE_KEY);
       if (raw) {
         var data = JSON.parse(raw);
         if (data && typeof data === 'object' && data.watched) {
-          Lampa.Storage.set(STORAGE_KEY, data);
           _collectionsCache = data;
           return data;
         }
+      }
+    } catch(e) {}
+    try {
+      var data2 = Lampa.Storage.get(STORAGE_KEY);
+      if (data2 && typeof data2 === 'object' && data2.watched) {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(data2));
+        _collectionsCache = data2;
+        return data2;
       }
     } catch(e) {}
     var data = JSON.parse(JSON.stringify(DEFAULT_COLLECTIONS));
@@ -63,8 +63,8 @@
 
   function saveCollections(data) {
     _collectionsCache = data;
-    try { Lampa.Storage.set(STORAGE_KEY, data); } catch(e) {}
     try { localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); } catch(e) {}
+    try { Lampa.Storage.set(STORAGE_KEY, data); } catch(e) {}
   }
 
   function isInCollection(collectionId, movieId) {
@@ -87,17 +87,28 @@
 
   function openFullCard(movie) {
     var mt = detectMediaType(movie);
-    movie.media_type = mt;
-    movie.source = 'tmdb';
-    Lampa.Activity.push({
+    var card = {
+      id: movie.id,
+      media_type: mt,
       title: movie.title || movie.name || '',
+      name: movie.name || movie.title || '',
+      original_title: movie.original_title || movie.original_name || '',
+      original_name: movie.original_name || movie.original_title || '',
+      poster_path: movie.poster_path || '',
+      backdrop_path: movie.backdrop_path || '',
+      release_date: movie.release_date || movie.first_air_date || '',
+      first_air_date: movie.first_air_date || '',
+      vote_average: movie.vote_average || 0,
+      vote_count: movie.vote_count || 0,
+      overview: movie.overview || '',
+      genre_ids: movie.genre_ids || [],
+      source: 'tmdb'
+    };
+    Lampa.Activity.push({
+      title: card.title,
       component: 'full',
-      card: movie,
-      data: {
-        movie: movie,
-        id: movie.id,
-        media_type: mt
-      }
+      card: card,
+      data: { movie: card }
     });
   }
 
@@ -287,7 +298,7 @@
     injectStyles();
 
     Lampa.Manifest.plugins = {
-      type: 'video', version: '1.12.0', name: PLUGIN_NAME,
+      type: 'video', version: '1.13.0', name: PLUGIN_NAME,
       description: 'Закладки, коллекции и таймер просмотра',
       component: 'my_collections',
       onContextMenu: function(){ return { name: PLUGIN_NAME, description: '' }; },
@@ -317,14 +328,17 @@
         if (e.type === 'complite' || e.type === 'start') {
           setTimeout(tryAddCardButton, 500);
           setTimeout(tryAddCardButton, 1500);
+          setTimeout(tryAddCardButton, 3000);
         }
       });
     }
     Lampa.Activity.listener.follow('complite', function(a) {
       setTimeout(tryAddCardButton, 800);
+      setTimeout(tryAddCardButton, 2000);
     });
     Lampa.Activity.listener.follow('start', function(a) {
       setTimeout(tryAddCardButton, 1200);
+      setTimeout(tryAddCardButton, 3000);
     });
   }
 
@@ -695,7 +709,13 @@
         '.buttons-full',
         '.full-start__tag',
         '.full__title + .full-start__buttons',
-        '.full-start__descr ~ div'
+        '.full-start__descr ~ div',
+        '.detail-page__header',
+        '.detail-page__container',
+        '.full-start',
+        '.cards__container',
+        '.page__container',
+        '.content'
       ];
 
       var inserted = false;
@@ -714,7 +734,12 @@
         }).first();
         if (anyBtn.length) {
           anyBtn.parent().append(btn);
+          inserted = true;
         }
+      }
+
+      if (!inserted) {
+        render.prepend(btn);
       }
     } catch(e) {}
   }
