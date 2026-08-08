@@ -267,10 +267,10 @@
     + '.mc-dialog-item__check.empty { color:rgba(255,255,255,0.15); }'
 
     + '.select-list .select-item { position:relative; padding-right:50px; }'
-    + '.select-list .select-item__checkbox { position:absolute; right:16px; top:50%; transform:translateY(-50%); width:26px; height:26px; border:2px solid rgba(255,255,255,0.25); border-radius:5px; background:transparent; display:flex; align-items:center; justify-content:center; transition:all .15s; }'
+    + '.select-list .select-item__checkbox { position:absolute; right:16px; top:50%; transform:translateY(-50%); width:26px; height:26px; border:2px solid rgba(255,255,255,0.45); border-radius:5px; background:transparent; display:flex; align-items:center; justify-content:center; transition:all .15s; }'
     + '.select-list .select-item__checkbox.on { border-color:#3bd574; background:rgba(59,213,116,0.2); }'
     + '.select-list .select-item__checkbox.on::after { content:""; width:12px; height:7px; border-left:2.5px solid #3bd574; border-bottom:2.5px solid #3bd574; transform:rotate(-45deg) translateY(-1px); }'
-    + '.select-list .select-item.focus .select-item__checkbox { border-color:rgba(255,255,255,0.5); }'
+    + '.select-list .select-item.focus .select-item__checkbox { border-color:rgba(255,255,255,0.7); }'
     + '.select-list .select-item.focus .select-item__checkbox.on { border-color:#3bd574; }';
 
     var style = document.createElement('style');
@@ -307,8 +307,7 @@
       item.innerHTML = '<div class="menu__item-text" style="font-size:18px;font-weight:600;">' + PLUGIN_NAME + '</div>';
       item.addEventListener('click', function(){ openCollectionsPage(); });
       item.addEventListener('hover:enter', function(){ openCollectionsPage(); });
-      var first = menuList.querySelector('.menu__item');
-      if (first) menuList.insertBefore(item, first); else menuList.appendChild(item);
+      menuList.appendChild(item);
     }, 2000);
   }
 
