@@ -3,36 +3,32 @@
 
   var PLUGIN_NAME = 'Мои Коллекции';
   var STORAGE_KEY = 'my_collections';
-  var TIME_KEY = 'my_collections_time';
-  var SORT_KEY = 'my_collections_sort';
-  var SCALE_KEY = 'my_collections_scale';
-  var FILTER_KEY = 'my_collections_filter';
-
-  var SCALE_LEVELS = [
-    { id: 'xs',  label: 'XS',  factor: 0.65 },
-    { id: 's',   label: 'S',   factor: 0.8  },
-    { id: 'm',   label: 'M',   factor: 1.0  },
-    { id: 'l',   label: 'L',   factor: 1.25 },
-    { id: 'xl',  label: 'XL',  factor: 1.5  }
-  ];
-  var DEFAULT_SCALE = 'm';
-  var BASE_CARD_W = 160;
-  var BASE_CARD_H = 240;
+  var PROGRESS_KEY = 'mc_watch_progress';
+  var VIEWED_KEY = 'mc_last_viewed';
+  var ACTIVE_TAB_KEY = 'mc_active_tab';
+  var ACTIVE_FILTER_KEY = 'mc_active_filter';
 
   var DEFAULT_COLLECTIONS = {
-    watched:     { name: 'Посмотрел',       icon: '', movies: [], isDefault: true },
-    will_watch:  { name: 'Буду смотреть',   icon: '', movies: [], isDefault: true },
-    want_watch:  { name: 'Хочу посмотреть', icon: '', movies: [], isDefault: true },
-    later:       { name: 'Потом',           icon: '', movies: [], isDefault: true },
-    favorite:    { name: 'Избранное',       icon: '', movies: [], isDefault: true }
+    watched:     { name: 'Посмотрел',       icon: '\u25B6', movies: [], isDefault: true },
+    will_watch:  { name: 'Буду смотреть',   icon: '\u23F8', movies: [], isDefault: true },
+    want_watch:  { name: 'Хочу посмотреть', icon: '\u2B50', movies: [], isDefault: true },
+    later:       { name: 'Потом',           icon: '\u23F0', movies: [], isDefault: true },
+    favorite:    { name: 'Избранное',       icon: '\u2764', movies: [], isDefault: true }
   };
 
-  var SORT_OPTIONS = [
-    { id: 'date_desc',   name: 'По дате (новые)' },
-    { id: 'date_asc',    name: 'По дате (старые)' },
-    { id: 'rating_desc', name: 'По рейтингу' },
-    { id: 'alpha_asc',   name: 'По алфавиту' }
+  var TYPE_TABS = [
+    { id: 'all',    label: 'Все',          icon: '\uD83D\uDCE6' },
+    { id: 'movie',  label: 'Фильмы',       icon: '\uD83C\uDFAC' },
+    { id: 'tv',     label: 'Сериалы',      icon: '\uD83D\uDCFA' },
+    { id: 'cartoon',label: 'Мультфильмы',  icon: '\uD83C\uDFA8' },
+    { id: 'anime',  label: 'Аниме',        icon: '\u26A1' },
+    { id: 'fav',    label: 'Избранное',    icon: '\u2764\uFE0F' }
   ];
+
+  var CARD_W = 175;
+  var CARD_H = 262;
+  var LANDSCAPE_W = 320;
+  var LANDSCAPE_H = 180;
 
   var _collectionsCache = null;
 
@@ -76,6 +72,15 @@
     return false;
   }
 
+  function isMovieInAnyCollection(movieId) {
+    var cols = getCollections();
+    var k = Object.keys(cols);
+    for (var i = 0; i < k.length; i++) {
+      if (isInCollection(k[i], movieId)) return true;
+    }
+    return false;
+  }
+
   function detectMediaType(movie) {
     if (movie.media_type === 'tv' || movie.media_type === 'show') return 'tv';
     if (movie.first_air_date || movie.number_of_seasons || movie.number_of_episodes) return 'tv';
@@ -83,6 +88,70 @@
     if (!movie.title && movie.name) return 'tv';
     if (movie.release_date && movie.first_air_date && movie.first_air_date !== movie.release_date) return 'tv';
     return 'movie';
+  }
+
+  function detectCategory(movie) {
+    var mt = detectMediaType(movie);
+    var genres = movie.genre_ids || movie.genres || [];
+    if (typeof genres === 'object' && !Array.isArray(genres)) genres = [];
+    var hasAnimation = false;
+    var hasJapanese = false;
+    if (genres.length && typeof genres[0] === 'object') {
+      genres = genres.map(function(g) { return g.id || 0; });
+    }
+    for (var i = 0; i < genres.length; i++) {
+      if (genres[i] === 16) hasAnimation = true;
+    }
+    var lang = (movie.original_language || '').toLowerCase();
+    if (lang === 'ja') hasJapanese = true;
+    if (mt === 'tv' && hasAnimation && hasJapanese) return 'anime';
+    if (mt === 'movie' && hasAnimation) return 'cartoon';
+    if (mt === 'tv' && hasAnimation) return 'cartoon';
+    return mt;
+  }
+
+  function getAllMovies() {
+    var cols = getCollections();
+    var all = [];
+    var seen = {};
+    var k = Object.keys(cols);
+    for (var i = 0; i < k.length; i++) {
+      var movies = cols[k[i]].movies;
+      for (var j = 0; j < movies.length; j++) {
+        var m = movies[j];
+        if (!seen[m.id]) {
+          seen[m.id] = true;
+          all.push(m);
+        }
+      }
+    }
+    return all;
+  }
+
+  function getMoviesByCategory(cat) {
+    var all = getAllMovies();
+    if (cat === 'all') return all;
+    if (cat === 'fav') {
+      return all.filter(function(m) { return isInCollection('favorite', m.id); });
+    }
+    return all.filter(function(m) { return detectCategory(m) === cat; });
+  }
+
+  function posterUrl(movie) {
+    var p = movie.poster_path || '';
+    if (p && !p.startsWith('http')) p = 'https://image.tmdb.org/t/p/w300' + p;
+    return p;
+  }
+
+  function backdropUrl(movie) {
+    var p = movie.backdrop_path || movie.poster_path || '';
+    if (p && !p.startsWith('http')) p = 'https://image.tmdb.org/t/p/w780' + p;
+    return p;
+  }
+
+  function getYear(movie) {
+    var d = movie.release_date || movie.first_air_date || '';
+    return d.substring(0, 4) || '';
   }
 
   function openFullCard(movie) {
@@ -122,15 +191,19 @@
     col.movies.push({
       id: movie.id || 0,
       title: movie.title || movie.name || '',
+      name: movie.name || movie.title || '',
       original_title: movie.original_title || '',
+      original_name: movie.original_name || '',
       poster_path: movie.poster_path || '',
       backdrop_path: movie.backdrop_path || '',
       release_date: movie.release_date || movie.first_air_date || '',
+      first_air_date: movie.first_air_date || '',
       vote_average: movie.vote_average || 0,
       vote_count: movie.vote_count || 0,
       overview: movie.overview || '',
       genre_ids: movie.genre_ids || [],
       media_type: detectMediaType(movie),
+      original_language: movie.original_language || '',
       added_at: Date.now(),
       source: movie.source || 'tmdb'
     });
@@ -143,7 +216,10 @@
     var col = collections[collectionId];
     if (!col) return false;
     var found = false;
-    col.movies = col.movies.filter(function(m) { if (m.id === movieId) { found = true; return false; } return true; });
+    col.movies = col.movies.filter(function(m) {
+      if (m.id === movieId) { found = true; return false; }
+      return true;
+    });
     if (found) saveCollections(collections);
     return found;
   }
@@ -156,129 +232,252 @@
     return true;
   }
 
-  function getWatchTime() { return Lampa.Storage.get(TIME_KEY, 0) || 0; }
-
-  function formatTime(sec) {
-    if (!sec || sec < 1) return '0 мин';
-    var d = Math.floor(sec / 86400), h = Math.floor((sec % 86400) / 3600), m = Math.floor((sec % 3600) / 60);
-    var p = [];
-    if (d > 0) p.push(d + ' дн');
-    if (h > 0) p.push(h + ' ч');
-    if (m > 0) p.push(m + ' мин');
-    return p.join(' ') || '0 мин';
+  function createAndAdd(name, icon, movie) {
+    var cols = getCollections();
+    var newId = 'custom_' + Date.now();
+    cols[newId] = { name: name, icon: icon || '\uD83D\uDCC1', movies: [] };
+    saveCollections(cols);
+    addToCollection(newId, movie);
+    Lampa.Noty.show('\u0421\u043E\u0437\u0434\u0430\u043D\u043E: \u00AB' + name + '\u00BB');
+    refreshCardButton();
   }
 
-  function sortMovies(movies, sortId) {
-    var s = movies.slice();
-    switch (sortId) {
-      case 'date_desc':   s.sort(function(a,b){return (b.added_at||0)-(a.added_at||0);}); break;
-      case 'date_asc':    s.sort(function(a,b){return (a.added_at||0)-(b.added_at||0);}); break;
-      case 'rating_desc': s.sort(function(a,b){return (b.vote_average||0)-(a.vote_average||0);}); break;
-      case 'alpha_asc':   s.sort(function(a,b){return (a.title||'').localeCompare(b.title||'');}); break;
-    }
-    return s;
+  function refreshCardButton() {
+    setTimeout(tryAddCardButton, 300);
+    setTimeout(tryAddCardButton, 1000);
+    setTimeout(tryAddCardButton, 2000);
   }
 
-  function getSortId() { return Lampa.Storage.get(SORT_KEY, 'date_desc'); }
+  // ========== Watch Tracking ==========
 
-  function getScaleId() { return Lampa.Storage.get(SCALE_KEY, DEFAULT_SCALE); }
-  function getScaleFactor() {
-    var id = getScaleId();
-    for (var i = 0; i < SCALE_LEVELS.length; i++) {
-      if (SCALE_LEVELS[i].id === id) return SCALE_LEVELS[i].factor;
-    }
-    return 1.0;
-  }
-  function getCardSize() {
-    var f = getScaleFactor();
-    return { w: Math.round(BASE_CARD_W * f), h: Math.round(BASE_CARD_H * f) };
+  function getProgress() {
+    try {
+      var raw = localStorage.getItem(PROGRESS_KEY);
+      return raw ? JSON.parse(raw) : {};
+    } catch(e) { return {}; }
   }
 
-  function posterUrl(movie) {
-    var p = movie.poster_path || '';
-    if (p && !p.startsWith('http')) p = 'https://image.tmdb.org/t/p/w300' + p;
-    return p;
+  function saveProgress(data) {
+    try { localStorage.setItem(PROGRESS_KEY, JSON.stringify(data)); } catch(e) {}
   }
 
-  function enableWheelScroll(el) {
-    if (!el || !el.addEventListener) return;
-    el.addEventListener('wheel', function(e) {
-      if (Math.abs(e.deltaY) > Math.abs(e.deltaX)) {
-        e.preventDefault();
-        el.scrollLeft += e.deltaY;
+  function updateProgress(movieId, info) {
+    var p = getProgress();
+    p[movieId] = {
+      time: info.time || 0,
+      duration: info.duration || 0,
+      episode: info.episode || '',
+      season: info.season || '',
+      title: info.title || '',
+      updated: Date.now()
+    };
+    saveProgress(p);
+  }
+
+  function getViewed() {
+    try {
+      var raw = localStorage.getItem(VIEWED_KEY);
+      return raw ? JSON.parse(raw) : {};
+    } catch(e) { return {}; }
+  }
+
+  function saveViewed(data) {
+    try { localStorage.setItem(VIEWED_KEY, JSON.stringify(data)); } catch(e) {}
+  }
+
+  function markViewed(movieId, movie) {
+    var v = getViewed();
+    v[movieId] = {
+      id: movieId,
+      title: movie.title || movie.name || '',
+      name: movie.name || movie.title || '',
+      original_title: movie.original_title || '',
+      original_name: movie.original_name || '',
+      poster_path: movie.poster_path || '',
+      backdrop_path: movie.backdrop_path || '',
+      release_date: movie.release_date || movie.first_air_date || '',
+      first_air_date: movie.first_air_date || '',
+      vote_average: movie.vote_average || 0,
+      genre_ids: movie.genre_ids || [],
+      original_language: movie.original_language || '',
+      timestamp: Date.now()
+    };
+    saveViewed(v);
+  }
+
+  function getContinueWatching() {
+    var progress = getProgress();
+    var allMovies = getAllMovies();
+    var ids = Object.keys(progress);
+    var items = [];
+    for (var i = 0; i < ids.length; i++) {
+      var pid = ids[i];
+      var pr = progress[pid];
+      if (!pr || !pr.duration || pr.time < 60) continue;
+      var pct = Math.floor((pr.time / pr.duration) * 100);
+      if (pct >= 95) continue;
+      var movie = null;
+      for (var j = 0; j < allMovies.length; j++) {
+        if (String(allMovies[j].id) === String(pid)) { movie = allMovies[j]; break; }
       }
-    }, { passive: false });
+      if (!movie) {
+        movie = { id: pid, title: pr.title || '', name: pr.title || '' };
+      }
+      items.push({
+        movie: movie,
+        progress: pr,
+        percent: pct,
+        left: Math.ceil((pr.duration - pr.time) / 60)
+      });
+    }
+    items.sort(function(a, b) { return (b.progress.updated || 0) - (a.progress.updated || 0); });
+    return items.slice(0, 12);
+  }
+
+  function getRecentlyAdded() {
+    var cols = getCollections();
+    var all = [];
+    var seen = {};
+    var k = Object.keys(cols);
+    for (var i = 0; i < k.length; i++) {
+      var movies = cols[k[i]].movies;
+      for (var j = 0; j < movies.length; j++) {
+        var m = movies[j];
+        if (!seen[m.id]) {
+          seen[m.id] = true;
+          all.push(m);
+        }
+      }
+    }
+    all.sort(function(a, b) { return (b.added_at || 0) - (a.added_at || 0); });
+    return all.slice(0, 20);
+  }
+
+  function getRecentlyViewed() {
+    var v = getViewed();
+    var ids = Object.keys(v);
+    var items = [];
+    for (var i = 0; i < ids.length; i++) {
+      var vid = ids[i];
+      var vi = v[vid];
+      if (!vi) continue;
+      items.push(vi);
+    }
+    items.sort(function(a, b) { return (b.timestamp || 0) - (a.timestamp || 0); });
+    return items.slice(0, 20);
+  }
+
+  // ========== Init Tracking Hooks ==========
+
+  function initTracking() {
+    if (typeof Lampa.Listener !== 'undefined') {
+      Lampa.Listener.follow('full', function(e) {
+        if (e.type === 'complite' || e.type === 'start') {
+          var movie = e.card || (e.data && e.data.movie);
+          if (movie && movie.id) {
+            markViewed(movie.id, movie);
+          }
+        }
+      });
+    }
+    try {
+      if (Lampa.Player && Lampa.Player.listener) {
+        Lampa.Player.listener.follow('video', function(e) {
+          if (e.type === 'timeupdate' && e.data) {
+            var active = Lampa.Activity.active();
+            if (active) {
+              var movie = active.card || (active.data && active.data.movie);
+              if (movie && movie.id) {
+                updateProgress(movie.id, {
+                  time: e.data.time || 0,
+                  duration: e.data.duration || 0,
+                  episode: e.data.episode || '',
+                  season: e.data.season || '',
+                  title: movie.title || movie.name || ''
+                });
+              }
+            }
+          }
+        });
+      }
+    } catch(e) {}
   }
 
   // ========== CSS ==========
 
   function injectStyles() {
-    if (document.getElementById('my-collections-styles')) return;
+    if (document.getElementById('mc-styles-v2')) return;
     var css = ''
-    + '.mc-page { padding:0 0 60px 0; box-sizing:border-box; width:100%; }'
+    + '.mc-page { padding:0 0 80px 0; box-sizing:border-box; width:100%; background:linear-gradient(180deg, #111122 0%, #0a0a1a 100%); min-height:100vh; }'
 
-    + '.mc-header { display:flex; align-items:center; padding:20px 24px 16px; gap:12px; }'
-    + '.mc-header__title { font-size:32px; font-weight:700; color:#fff; flex:1; }'
-    + '.mc-header__time { font-size:15px; color:#3bd574; background:rgba(59,213,116,0.1); padding:8px 16px; border-radius:8px; white-space:nowrap; }'
-
-    + '.mc-tabs { display:flex; gap:12px; padding:0 24px 16px; overflow-x:auto; }'
+    + '.mc-tabs { display:flex; gap:10px; padding:20px 24px 16px; overflow-x:auto; align-items:center; }'
     + '.mc-tabs::-webkit-scrollbar { display:none; }'
-    + '.mc-tab { flex-shrink:0; padding:14px 24px; border-radius:12px; background:rgba(255,255,255,0.06); border:2px solid transparent; cursor:pointer; transition:all .15s; min-width:140px; text-align:center; }'
-    + '.mc-tab:hover,.mc-tab.focus { background:rgba(255,255,255,0.12); border-color:rgba(255,255,255,0.15); }'
-    + '.mc-tab.active { background:rgba(255,255,255,0.1); border-color:rgba(255,255,255,0.25); }'
-    + '.mc-tab__name { font-size:15px; color:rgba(255,255,255,0.6); margin-bottom:4px; }'
-    + '.mc-tab.active .mc-tab__name { color:#fff; }'
-    + '.mc-tab__count { font-size:24px; font-weight:700; color:#fff; }'
-    + '.mc-tab__max { font-size:13px; color:rgba(255,255,255,0.3); }'
+    + '.mc-tab { flex-shrink:0; display:flex; align-items:center; gap:8px; padding:10px 20px; border-radius:24px; background:rgba(255,255,255,0.06); border:1.5px solid transparent; cursor:pointer; transition:all .2s; }'
+    + '.mc-tab:hover,.mc-tab.focus { background:rgba(255,255,255,0.1); border-color:rgba(255,255,255,0.15); }'
+    + '.mc-tab.active { background:rgba(255,255,255,0.12); border-color:rgba(255,255,255,0.3); }'
+    + '.mc-tab__icon { font-size:16px; }'
+    + '.mc-tab__label { font-size:14px; color:rgba(255,255,255,0.6); font-weight:500; }'
+    + '.mc-tab.active .mc-tab__label { color:#fff; }'
+    + '.mc-tab__count { font-size:12px; color:rgba(255,255,255,0.3); margin-left:2px; }'
 
-    + '.mc-sort { display:flex; gap:10px; padding:8px 24px 12px; overflow-x:auto; }'
-    + '.mc-sort::-webkit-scrollbar { display:none; }'
-    + '.mc-sort__btn { flex-shrink:0; padding:10px 20px; border-radius:8px; background:rgba(255,255,255,0.06); color:rgba(255,255,255,0.6); font-size:14px; cursor:pointer; transition:all .15s; }'
-    + '.mc-sort__btn:hover,.mc-sort__btn.focus { background:rgba(255,255,255,0.12); color:#fff; }'
-    + '.mc-sort__btn.active { background:rgba(59,213,116,0.15); color:#3bd574; }'
+    + '.mc-filter-btn { flex-shrink:0; display:flex; align-items:center; gap:6px; padding:10px 18px; border-radius:24px; background:rgba(255,255,255,0.06); border:1.5px solid transparent; cursor:pointer; transition:all .2s; margin-left:auto; }'
+    + '.mc-filter-btn:hover,.mc-filter-btn.focus { background:rgba(255,255,255,0.1); border-color:rgba(255,255,255,0.15); }'
+    + '.mc-filter-btn.active { background:rgba(59,213,116,0.12); border-color:rgba(59,213,116,0.4); }'
+    + '.mc-filter-btn__label { font-size:14px; color:rgba(255,255,255,0.6); }'
+    + '.mc-filter-btn.active .mc-filter-btn__label { color:#3bd574; }'
 
-    + '.mc-scale { display:flex; gap:8px; padding:4px 24px 12px; align-items:center; }'
-    + '.mc-scale__label { font-size:14px; color:rgba(255,255,255,0.5); margin-right:4px; white-space:nowrap; }'
-    + '.mc-scale__btn { flex-shrink:0; width:44px; height:38px; border-radius:8px; background:rgba(255,255,255,0.06); color:rgba(255,255,255,0.6); font-size:14px; font-weight:600; cursor:pointer; display:flex; align-items:center; justify-content:center; transition:all .15s; }'
-    + '.mc-scale__btn:hover,.mc-scale__btn.focus { background:rgba(255,255,255,0.12); color:#fff; }'
-    + '.mc-scale__btn.active { background:rgba(59,213,116,0.15); color:#3bd574; }'
+    + '.mc-view-btn { flex-shrink:0; width:38px; height:38px; border-radius:50%; background:rgba(255,255,255,0.06); border:1.5px solid transparent; cursor:pointer; display:flex; align-items:center; justify-content:center; transition:all .2s; }'
+    + '.mc-view-btn:hover,.mc-view-btn.focus { background:rgba(255,255,255,0.1); }'
+    + '.mc-view-btn.active { background:rgba(255,255,255,0.12); border-color:rgba(255,255,255,0.3); }'
+    + '.mc-view-btn svg { width:18px; height:18px; fill:rgba(255,255,255,0.5); }'
+    + '.mc-view-btn.active svg { fill:#fff; }'
 
-    + '.mc-section { margin-bottom:24px; }'
-    + '.mc-section__head { display:flex; align-items:center; padding:8px 24px 12px; gap:8px; }'
+    + '.mc-section { margin-bottom:28px; }'
+    + '.mc-section__head { display:flex; align-items:center; padding:0 24px 14px; gap:12px; }'
     + '.mc-section__title { font-size:22px; font-weight:700; color:#fff; flex:1; }'
-    + '.mc-section__more { font-size:14px; color:#3bd574; padding:8px 16px; border-radius:8px; background:rgba(59,213,116,0.1); cursor:pointer; transition:all .15s; }'
-    + '.mc-section__more:hover,.mc-section__more.focus { background:rgba(59,213,116,0.2); }'
+    + '.mc-section__arrows { display:flex; gap:8px; }'
+    + '.mc-section__arrow { width:36px; height:36px; border-radius:50%; background:rgba(255,255,255,0.08); border:1px solid rgba(255,255,255,0.1); cursor:pointer; display:flex; align-items:center; justify-content:center; transition:all .2s; }'
+    + '.mc-section__arrow:hover,.mc-section__arrow.focus { background:rgba(255,255,255,0.15); }'
+    + '.mc-section__arrow svg { width:16px; height:16px; fill:none; stroke:rgba(255,255,255,0.6); stroke-width:2; }'
 
-    + '.mc-row { display:flex; gap:16px; padding:0 24px; overflow-x:auto; overflow-y:hidden; scroll-behavior:smooth; }'
+    + '.mc-row { display:flex; gap:14px; padding:0 24px; overflow-x:auto; overflow-y:hidden; scroll-behavior:smooth; }'
     + '.mc-row::-webkit-scrollbar { display:none; }'
 
-    + '.mc-card { flex-shrink:0; cursor:pointer; position:relative; transition:transform .15s; text-align:center; }'
-    + '.mc-card:hover,.mc-card.focus { transform:scale(1.05); }'
-    + '.mc-card__poster { border-radius:10px; background-size:cover; background-position:center top; background-color:rgba(255,255,255,0.06); position:relative; overflow:hidden; }'
-    + '.mc-card__badge { position:absolute; top:8px; right:8px; background:rgba(0,0,0,0.8); color:#f5c518; font-size:13px; font-weight:700; padding:4px 8px; border-radius:6px; }'
-    + '.mc-card__icons { position:absolute; bottom:8px; left:8px; display:flex; gap:4px; }'
-    + '.mc-card__icon { height:22px; border-radius:4px; background:rgba(0,0,0,0.75); display:flex; align-items:center; justify-content:center; font-size:11px; color:rgba(255,255,255,0.8); padding:0 6px; white-space:nowrap; }'
-    + '.mc-card__title { margin-top:10px; font-size:14px; color:#fff; overflow:hidden; text-overflow:ellipsis; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; font-weight:500; word-wrap:break-word; line-height:1.3; max-width:100%; box-sizing:border-box; }'
-    + '.mc-card__year { margin-top:3px; font-size:13px; color:rgba(255,255,255,0.4); }'
+    + '.mc-card { flex-shrink:0; cursor:pointer; transition:transform .2s; }'
+    + '.mc-card:hover,.mc-card.focus { transform:scale(1.04); }'
 
-    + '.mc-empty { padding:30px; color:rgba(255,255,255,0.3); font-size:16px; text-align:center; }'
+    + '.mc-card--landscape { width:' + LANDSCAPE_W + 'px; border-radius:12px; overflow:hidden; position:relative; background:#1a1a2e; }'
+    + '.mc-card--landscape .mc-card__backdrop { width:100%; height:' + LANDSCAPE_H + 'px; background-size:cover; background-position:center; position:relative; }'
+    + '.mc-card--landscape .mc-card__gradient { position:absolute; bottom:0; left:0; right:0; height:70%; background:linear-gradient(transparent, rgba(0,0,0,0.85)); }'
+    + '.mc-card--landscape .mc-card__play { position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); width:44px; height:44px; border-radius:50%; background:rgba(255,255,255,0.9); display:flex; align-items:center; justify-content:center; opacity:0; transition:opacity .2s; }'
+    + '.mc-card--landscape:hover .mc-card__play,.mc-card--landscape.focus .mc-card__play { opacity:1; }'
+    + '.mc-card--landscape .mc-card__play svg { width:18px; height:18px; fill:#111; margin-left:2px; }'
+    + '.mc-card--landscape .mc-card__info { padding:12px 14px; }'
+    + '.mc-card--landscape .mc-card__title { font-size:15px; font-weight:600; color:#fff; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }'
+    + '.mc-card--landscape .mc-card__subtitle { font-size:12px; color:rgba(255,255,255,0.45); margin-top:3px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }'
+    + '.mc-card--landscape .mc-card__meta { font-size:11px; color:rgba(255,255,255,0.35); margin-top:4px; }'
+    + '.mc-card--landscape .mc-card__progress { height:3px; background:rgba(255,255,255,0.1); border-radius:2px; margin-top:8px; overflow:hidden; }'
+    + '.mc-card--landscape .mc-card__progress-bar { height:100%; background:#3bd574; border-radius:2px; }'
+    + '.mc-card--landscape .mc-card__left { font-size:11px; color:#3bd574; margin-top:4px; }'
 
-    + '.mc-stats { display:flex; gap:20px; padding:16px 24px; justify-content:center; }'
-    + '.mc-stat { width:120px; height:120px; border-radius:50%; display:flex; flex-direction:column; align-items:center; justify-content:center; position:relative; }'
-    + '.mc-stat__bg { position:absolute; inset:0; border-radius:50%; opacity:0.15; }'
-    + '.mc-stat__num { font-size:32px; font-weight:800; color:#fff; position:relative; z-index:1; }'
-    + '.mc-stat__label { font-size:13px; color:rgba(255,255,255,0.6); position:relative; z-index:1; margin-top:2px; }'
+    + '.mc-card--portrait { width:' + CARD_W + 'px; }'
+    + '.mc-card--portrait .mc-card__poster { width:' + CARD_W + 'px; height:' + CARD_H + 'px; border-radius:10px; background-size:cover; background-position:center top; background-color:rgba(255,255,255,0.06); position:relative; overflow:hidden; }'
+    + '.mc-card--portrait .mc-card__badge { position:absolute; top:8px; right:8px; background:rgba(0,0,0,0.75); color:#f5c518; font-size:12px; font-weight:700; padding:3px 7px; border-radius:6px; }'
+    + '.mc-card--portrait .mc-card__menu { position:absolute; top:8px; left:8px; width:28px; height:28px; border-radius:50%; background:rgba(0,0,0,0.6); display:flex; align-items:center; justify-content:center; cursor:pointer; opacity:0; transition:opacity .2s; }'
+    + '.mc-card--portrait:hover .mc-card__menu,.mc-card--portrait.focus .mc-card__menu { opacity:1; }'
+    + '.mc-card--portrait .mc-card__menu-dots { color:#fff; font-size:14px; }'
+    + '.mc-card--portrait .mc-card__info { padding:8px 2px 0; }'
+    + '.mc-card--portrait .mc-card__title { font-size:13px; color:#fff; font-weight:500; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }'
+    + '.mc-card--portrait .mc-card__subtitle { font-size:11px; color:rgba(255,255,255,0.35); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin-top:2px; }'
+    + '.mc-card--portrait .mc-card__year { font-size:12px; color:rgba(255,255,255,0.3); margin-top:2px; }'
+
+    + '.mc-empty { padding:40px 24px; color:rgba(255,255,255,0.25); font-size:16px; text-align:center; }'
 
     + '.mc-dialog-item { display:flex; align-items:center; justify-content:space-between; padding:14px 18px; cursor:pointer; border-radius:10px; background:rgba(255,255,255,0.04); margin-bottom:6px; transition:background .1s; }'
-    + '.mc-dialog-item:hover,.mc-dialog-item.focus { background:rgba(255,255,255,0.1); }'
-    + '.mc-dialog-item__left { display:flex; align-items:center; gap:10px; flex:1; }'
-    + '.mc-dialog-item__icon { font-size:20px; }'
-    + '.mc-dialog-item__name { font-size:17px; color:#fff; font-weight:500; }'
-    + '.mc-dialog-item__check { font-size:20px; color:#3bd574; min-width:28px; text-align:right; display:flex; align-items:center; justify-content:center; }'
-    + '.mc-dialog-item__check.empty { color:rgba(255,255,255,0.15); }';
+    + '.mc-dialog-item:hover,.mc-dialog-item.focus { background:rgba(255,255,255,0.1); }';
 
     var style = document.createElement('style');
-    style.id = 'my-collections-styles';
+    style.id = 'mc-styles-v2';
     style.textContent = css;
     document.head.appendChild(style);
   }
@@ -291,8 +490,8 @@
     injectStyles();
 
     Lampa.Manifest.plugins = {
-      type: 'video', version: '1.13.0', name: PLUGIN_NAME,
-      description: 'Закладки, коллекции и таймер просмотра',
+      type: 'video', version: '2.0.0', name: PLUGIN_NAME,
+      description: '\u0417\u0430\u043A\u043B\u0430\u0434\u043A\u0438 \u0438 \u043A\u043E\u043B\u043B\u0435\u043A\u0446\u0438\u0438',
       component: 'my_collections',
       onContextMenu: function(){ return { name: PLUGIN_NAME, description: '' }; },
       onContextLauch: function(obj){ showAddToCollectionDialog(obj); }
@@ -300,6 +499,7 @@
 
     addMenuButton();
     initListener();
+    initTracking();
   }
 
   function addMenuButton() {
@@ -349,13 +549,13 @@
         var key = keys[i];
         var col = collections[key];
         var inCol = isInCollection(key, movie.id);
-        var mark = inCol ? '☑' : '☐';
+        var mark = inCol ? '\u2611' : '\u2610';
         items.push({
           title: mark + '  ' + col.name,
           _id: key, _movie: movie, _in: inCol
         });
       }
-      items.push({ title: '➕  Создать коллекцию...', _create: true });
+      items.push({ title: '\u2795  \u0421\u043E\u0437\u0434\u0430\u0442\u044C \u043A\u043E\u043B\u043B\u0435\u043A\u0446\u0438\u044E...', _create: true });
       return items;
     }
 
@@ -371,10 +571,10 @@
           }
           if (item._in) {
             removeFromCollection(item._id, item._movie.id);
-            Lampa.Noty.show('Убрано из «' + collections[item._id].name + '»');
+            Lampa.Noty.show('\u0423\u0431\u0440\u0430\u043D\u043E \u0438\u0437 \u00AB' + collections[item._id].name + '\u00BB');
           } else {
             addToCollection(item._id, item._movie);
-            Lampa.Noty.show('Добавлено в «' + collections[item._id].name + '»');
+            Lampa.Noty.show('\u0414\u043E\u0431\u0430\u0432\u043B\u0435\u043D\u043E \u0432 \u00AB' + collections[item._id].name + '\u00BB');
           }
           _collectionsCache = null;
           collections = getCollections();
@@ -391,25 +591,25 @@
 
   function showCreateCollectionDialog(movie) {
     var predefinedNames = [
-      { title: 'Документальные', name: 'Документальные' },
-      { title: 'Комедии', name: 'Комедии' },
-      { title: 'Ужасы', name: 'Ужасы' },
-      { title: 'Фантастика', name: 'Фантастика' },
-      { title: 'Мелодрамы', name: 'Мелодрамы' },
-      { title: 'Боевики', name: 'Боевики' },
-      { title: 'Детективы', name: 'Детективы' },
-      { title: 'Драмы', name: 'Драмы' },
-      { title: 'Мюзиклы', name: 'Мюзиклы' },
-      { title: 'Исторические', name: 'Исторические' },
-      { title: 'Военные', name: 'Военные' },
-      { title: 'Криминал', name: 'Криминал' },
-      { title: 'Загадки', name: 'Загадки' },
-      { title: 'Семейные', name: 'Семейные' },
-      { title: 'Детские', name: 'Детские' }
+      { title: '\u0414\u043E\u043A\u0443\u043C\u0435\u043D\u0442\u0430\u043B\u044C\u043D\u044B\u0435', name: '\u0414\u043E\u043A\u0443\u043C\u0435\u043D\u0442\u0430\u043B\u044C\u043D\u044B\u0435' },
+      { title: '\u041A\u043E\u043C\u0435\u0434\u0438\u0438', name: '\u041A\u043E\u043C\u0435\u0434\u0438\u0438' },
+      { title: '\u0423\u0436\u0430\u0441\u044B', name: '\u0423\u0436\u0430\u0441\u044B' },
+      { title: '\u0424\u0430\u043D\u0442\u0430\u0441\u0442\u0438\u043A\u0430', name: '\u0424\u0430\u043D\u0442\u0430\u0441\u0442\u0438\u043A\u0430' },
+      { title: '\u041C\u0435\u043B\u043E\u0434\u0440\u0430\u043C\u044B', name: '\u041C\u0435\u043B\u043E\u0434\u0440\u0430\u043C\u044B' },
+      { title: '\u0411\u043E\u0435\u0432\u0438\u043A\u0438', name: '\u0411\u043E\u0435\u0432\u0438\u043A\u0438' },
+      { title: '\u0414\u0435\u0442\u0435\u043A\u0442\u0438\u0432\u044B', name: '\u0414\u0435\u0442\u0435\u043A\u0442\u0438\u0432\u044B' },
+      { title: '\u0414\u0440\u0430\u043C\u044B', name: '\u0414\u0440\u0430\u043C\u044B' },
+      { title: '\u041C\u044E\u0437\u0438\u043A\u043B\u044B', name: '\u041C\u044E\u0437\u0438\u043A\u043B\u044B' },
+      { title: '\u0418\u0441\u0442\u043E\u0440\u0438\u0447\u0435\u0441\u043A\u0438\u0435', name: '\u0418\u0441\u0442\u043E\u0440\u0438\u0447\u0435\u0441\u043A\u0438\u0435' },
+      { title: '\u0412\u043E\u0435\u043D\u043D\u044B\u0435', name: '\u0412\u043E\u0435\u043D\u043D\u044B\u0435' },
+      { title: '\u041A\u0440\u0438\u043C\u0438\u043D\u0430\u043B', name: '\u041A\u0440\u0438\u043C\u0438\u043D\u0430\u043B' },
+      { title: '\u0417\u0430\u0433\u0430\u0434\u043A\u0438', name: '\u0417\u0430\u0433\u0430\u0434\u043A\u0438' },
+      { title: '\u0421\u0435\u043C\u0435\u0439\u043D\u044B\u0435', name: '\u0421\u0435\u043C\u0435\u0439\u043D\u044B\u0435' },
+      { title: '\u0414\u0435\u0442\u0441\u043A\u0438\u0435', name: '\u0414\u0435\u0442\u0441\u043A\u0438\u0435' }
     ];
 
     Lampa.Select.show({
-      title: 'Новая коллекция',
+      title: '\u041D\u043E\u0432\u0430\u044F \u043A\u043E\u043B\u043B\u0435\u043A\u0446\u0438\u044F',
       items: predefinedNames.map(function(n) {
         return { title: n.title, _name: n.name };
       }),
@@ -423,159 +623,259 @@
     });
   }
 
-  function createAndAdd(name, icon, movie) {
-    var cols = getCollections();
-    var newId = 'custom_' + Date.now();
-    cols[newId] = { name: name, icon: icon || '📁', movies: [] };
-    saveCollections(cols);
-    addToCollection(newId, movie);
-    Lampa.Noty.show('Создано: «' + name + '»');
-    refreshCardButton();
+  // ========== Scroll Helper ==========
+
+  function enableWheelScroll(el) {
+    if (!el || !el.addEventListener) return;
+    el.addEventListener('wheel', function(e) {
+      if (Math.abs(e.deltaY) > Math.abs(e.deltaX)) {
+        e.preventDefault();
+        el.scrollLeft += e.deltaY;
+      }
+    }, { passive: false });
   }
 
-  function refreshCardButton() {
-    setTimeout(tryAddCardButton, 300);
-    setTimeout(tryAddCardButton, 1000);
-    setTimeout(tryAddCardButton, 2000);
+  function scrollRow(row, direction) {
+    if (!row) return;
+    var scrollAmount = direction * (LANDSCAPE_W + 30);
+    row.scrollBy({ left: scrollAmount, behavior: 'smooth' });
   }
 
   // ========== Main Page ==========
 
   function openCollectionsPage() {
-    var collections = getCollections();
-    var totalTime = getWatchTime();
-    var sortId = getSortId();
-    var activeFilter = Lampa.Storage.get(FILTER_KEY, 'all');
+    var activeTab = localStorage.getItem(ACTIVE_TAB_KEY) || 'all';
+    var activeFilter = localStorage.getItem(ACTIVE_FILTER_KEY) || 'all';
+    var allMovies = getAllMovies();
 
     var scroll = new Lampa.Scroll({ mask: true, over: true });
     scroll.body().addClass('mc-page');
 
-    /* Stats */
-    var allMovies = [];
-    var ks = Object.keys(collections);
-    for (var si = 0; si < ks.length; si++) allMovies = allMovies.concat(collections[ks[si]].movies);
-    var totalItems = allMovies.length;
-    var totalFilms = 0, totalSeries = 0;
-    for (var ai = 0; ai < allMovies.length; ai++) {
-      if (detectMediaType(allMovies[ai]) === 'tv') totalSeries++;
-      else totalFilms++;
-    }
+    var contentEl = $('<div></div>');
+    scroll.append(contentEl);
 
-    var statsEl = $(
-      '<div class="mc-stats">' +
-        '<div class="mc-stat"><div class="mc-stat__bg" style="background:linear-gradient(135deg,#7c4dff,#b47cff);"></div><div class="mc-stat__num">' + totalItems + '</div><div class="mc-stat__label">всего</div></div>' +
-        '<div class="mc-stat"><div class="mc-stat__bg" style="background:linear-gradient(135deg,#536dfe,#8fa8fe);"></div><div class="mc-stat__num">' + totalFilms + '</div><div class="mc-stat__label">фильмов</div></div>' +
-        '<div class="mc-stat"><div class="mc-stat__bg" style="background:linear-gradient(135deg,#2196f3,#64b5f6);"></div><div class="mc-stat__num">' + totalSeries + '</div><div class="mc-stat__label">сериалов</div></div>' +
-      '</div>'
-    );
-    scroll.append(statsEl);
+    function renderPage() {
+      contentEl.empty();
 
-    /* Tabs */
-    var tabsEl = $('<div class="mc-tabs"></div>');
-    var keys = Object.keys(collections);
+      var filteredMovies = getMoviesByCategory(activeTab);
+      if (activeFilter !== 'all') {
+        filteredMovies = filteredMovies.filter(function(m) {
+          return isInCollection(activeFilter, m.id);
+        });
+      }
 
-    var allCount = 0;
-    for (var i = 0; i < keys.length; i++) allCount += collections[keys[i]].movies.length;
+      var continueWatching = getContinueWatching();
+      if (activeTab !== 'all') {
+        continueWatching = continueWatching.filter(function(item) {
+          return detectCategory(item.movie) === activeTab;
+        });
+      }
 
-    tabsEl.append($(
-      '<div class="mc-tab selector' + (activeFilter === 'all' ? ' active' : '') + '" data-tab="all">' +
-        '<div class="mc-tab__name">Все</div>' +
-        '<div class="mc-tab__count">' + allCount + ' <span class="mc-tab__max">/ 500</span></div>' +
-      '</div>'
-    ));
+      var recentlyAdded = getRecentlyAdded();
+      if (activeTab !== 'all') {
+        recentlyAdded = recentlyAdded.filter(function(m) {
+          return detectCategory(m) === activeTab;
+        });
+      }
+      if (activeFilter !== 'all') {
+        recentlyAdded = recentlyAdded.filter(function(m) {
+          return isInCollection(activeFilter, m.id);
+        });
+      }
 
-    for (var i = 0; i < keys.length; i++) {
-      var key = keys[i];
-      var col = collections[key];
-      tabsEl.append($(
-        '<div class="mc-tab selector' + (activeFilter === key ? ' active' : '') + '" data-tab="' + key + '">' +
-          '<div class="mc-tab__name">' + col.name + '</div>' +
-          '<div class="mc-tab__count">' + col.movies.length + ' <span class="mc-tab__max">/ 500</span></div>' +
-        '</div>'
-      ));
-    }
-    scroll.append(tabsEl);
+      var recentlyViewed = getRecentlyViewed();
+      if (activeTab !== 'all') {
+        recentlyViewed = recentlyViewed.filter(function(m) {
+          return detectCategory(m) === activeTab;
+        });
+      }
 
-    /* Sort */
-    var sortEl = $('<div class="mc-sort"></div>');
-    for (var s = 0; s < SORT_OPTIONS.length; s++) {
-      var opt = SORT_OPTIONS[s];
-      sortEl.append($('<div class="mc-sort__btn selector' + (opt.id === sortId ? ' active' : '') + '" data-sort="' + opt.id + '">' + opt.name + '</div>'));
-    }
-    scroll.append(sortEl);
-
-    /* Scale */
-    var scaleId = getScaleId();
-    var scaleEl = $('<div class="mc-scale"></div>');
-    scaleEl.append($('<div class="mc-scale__label">Размер:</div>'));
-    for (var sc = 0; sc < SCALE_LEVELS.length; sc++) {
-      var sl = SCALE_LEVELS[sc];
-      scaleEl.append($('<div class="mc-scale__btn selector' + (sl.id === scaleId ? ' active' : '') + '" data-scale="' + sl.id + '">' + sl.label + '</div>'));
-    }
-    scroll.append(scaleEl);
-
-    /* Sections container */
-    var sectionsEl = $('<div></div>');
-    scroll.append(sectionsEl);
-
-    function renderSections() {
-      sectionsEl.empty();
-      var cols = getCollections();
-      var sId = getSortId();
-      var fId = Lampa.Storage.get(FILTER_KEY, 'all');
-      var k = Object.keys(cols);
-
-      for (var i = 0; i < k.length; i++) {
-        var id = k[i];
-        var c = cols[id];
-        if (!c.movies.length) continue;
-        if (fId !== 'all' && fId !== id) continue;
-
-        var sorted = sortMovies(c.movies, sId);
-
-        var section = $('<div class="mc-section" data-section="' + id + '"></div>');
-
-        section.append($(
-          '<div class="mc-section__head">' +
-            '<div class="mc-section__title">' + c.name + '</div>' +
-          '</div>'
+      /* Tabs */
+      var tabsEl = $('<div class="mc-tabs"></div>');
+      for (var t = 0; t < TYPE_TABS.length; t++) {
+        var tab = TYPE_TABS[t];
+        var tabMovies = getMoviesByCategory(tab.id);
+        var count = tabMovies.length;
+        var isActive = activeTab === tab.id;
+        tabsEl.append($(
+          '<div class="mc-tab selector' + (isActive ? ' active' : '') + '" data-tab="' + tab.id + '">'
+          + '<span class="mc-tab__icon">' + tab.icon + '</span>'
+          + '<span class="mc-tab__label">' + tab.label + '</span>'
+          + '<span class="mc-tab__count">' + count + '</span>'
+          + '</div>'
         ));
+      }
 
-        var row = $('<div class="mc-row"></div>');
-        for (var j = 0; j < sorted.length; j++) {
-          row.append(createCard(sorted[j], id));
+      var filterLabel = '\u0424\u0438\u043B\u044C\u0442\u0440\u044B';
+      if (activeFilter !== 'all') {
+        var cols = getCollections();
+        if (cols[activeFilter]) filterLabel = cols[activeFilter].name;
+      }
+      var filterBtn = $(
+        '<div class="mc-filter-btn selector' + (activeFilter !== 'all' ? ' active' : '') + '" data-filter="toggle">'
+        + '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>'
+        + '<span class="mc-filter-btn__label">' + filterLabel + '</span>'
+        + '</div>'
+      );
+      tabsEl.append(filterBtn);
+      contentEl.append(tabsEl);
+
+      var hasAny = continueWatching.length > 0 || recentlyAdded.length > 0 || recentlyViewed.length > 0;
+
+      if (hasAny) {
+        if (continueWatching.length > 0) {
+          renderContinueWatching(continueWatching);
         }
-        enableWheelScroll(row[0]);
-        section.append(row);
-        sectionsEl.append(section);
+        if (recentlyAdded.length > 0) {
+          renderPortraitSection('\u041D\u0435\u0434\u0430\u0432\u043D\u043E \u0434\u043E\u0431\u0430\u0432\u043B\u0435\u043D\u043E', recentlyAdded, 'added');
+        }
+        if (recentlyViewed.length > 0) {
+          renderPortraitSection('\u041D\u0435\u0434\u0430\u0432\u043D\u043E \u043F\u0440\u043E\u0441\u043C\u043E\u0442\u0440\u0435\u043D\u043E', recentlyViewed, 'viewed');
+        }
+      } else {
+        contentEl.append($('<div class="mc-empty">\u041F\u043E\u043A\u0430 \u043F\u0443\u0441\u0442\u043E. \u0414\u043E\u0431\u0430\u0432\u043B\u044F\u0439\u0442\u0435 \u0444\u0438\u043B\u044C\u043C\u044B \u0438\u0437 \u043A\u0430\u0440\u0442\u043E\u0447\u0435\u043A.</div>'));
       }
 
-      if (!sectionsEl.children().length) {
-        sectionsEl.append($('<div class="mc-empty">Пока пусто. Добавляйте фильмы из карточек.</div>'));
+      bindEvents();
+      try { scroll.update(); } catch(e) {}
+    }
+
+    function renderContinueWatching(items) {
+      var section = $('<div class="mc-section"></div>');
+      var head = $(
+        '<div class="mc-section__head">'
+        + '<div class="mc-section__title">\u041F\u0440\u043E\u0434\u043E\u043B\u0436\u0438\u0442\u044C \u043F\u0440\u043E\u0441\u043C\u043E\u0442\u0440</div>'
+        + '<div class="mc-section__arrows">'
+        + '<div class="mc-section__arrow selector" data-dir="-1"><svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg></div>'
+        + '<div class="mc-section__arrow selector" data-dir="1"><svg viewBox="0 0 24 24"><polyline points="9 6 15 12 9 18"/></svg></div>'
+        + '</div>'
+        + '</div>'
+      );
+      section.append(head);
+
+      var row = $('<div class="mc-row"></div>');
+      for (var i = 0; i < items.length; i++) {
+        var item = items[i];
+        var m = item.movie;
+        var bg = backdropUrl(m);
+        var meta = '';
+        if (item.progress.season) meta = 'S' + item.progress.season + ' \u00B7 E' + item.progress.episode;
+        else if (item.progress.episode) meta = '\u042D\u043F. ' + item.progress.episode;
+
+        var card = $(
+          '<div class="mc-card mc-card--landscape selector" data-mid="' + m.id + '">'
+          + '<div class="mc-card__backdrop" style="background-image:url(' + (bg || '') + ')">'
+          + '<div class="mc-card__gradient"></div>'
+          + '<div class="mc-card__play"><svg viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"/></svg></div>'
+          + '</div>'
+          + '<div class="mc-card__info">'
+          + '<div class="mc-card__title">' + (m.title || m.name || '') + '</div>'
+          + '<div class="mc-card__subtitle">' + (m.original_title || m.original_name || '') + '</div>'
+          + (meta ? '<div class="mc-card__meta">' + meta + '</div>' : '')
+          + '<div class="mc-card__progress"><div class="mc-card__progress-bar" style="width:' + item.percent + '%"></div></div>'
+          + '<div class="mc-card__left">' + item.left + ' \u043C\u0438\u043D \u043E\u0441\u0442\u0430\u043B\u043E\u0441\u044C</div>'
+          + '</div>'
+          + '</div>'
+        ).data('movie', m);
+        row.append(card);
       }
+      enableWheelScroll(row[0]);
+      section.append(row);
+      contentEl.append(section);
     }
 
-    function createCard(m, collectionId) {
-      var url = posterUrl(m);
-      var year = (m.release_date || '').substring(0, 4);
-      var rating = (m.vote_average || 0).toFixed(1);
-      var sz = getCardSize();
-      var isTv = detectMediaType(m) === 'tv';
-      var typeBadge = isTv ? 'Сериал' : 'Фильм';
+    function renderPortraitSection(title, movies, type) {
+      var section = $('<div class="mc-section"></div>');
+      var head = $(
+        '<div class="mc-section__head">'
+        + '<div class="mc-section__title">' + title + '</div>'
+        + '<div class="mc-section__arrows">'
+        + '<div class="mc-section__arrow selector" data-dir="-1"><svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg></div>'
+        + '<div class="mc-section__arrow selector" data-dir="1"><svg viewBox="0 0 24 24"><polyline points="9 6 15 12 9 18"/></svg></div>'
+        + '</div>'
+        + '</div>'
+      );
+      section.append(head);
 
-      return $(
-        '<div class="mc-card selector" data-mid="' + m.id + '" data-col="' + collectionId + '" style="width:' + sz.w + 'px;">' +
-          '<div class="mc-card__poster" style="width:' + sz.w + 'px;height:' + sz.h + 'px;background-image:url(' + (url || '') + ')">' +
-            (m.vote_average > 0 ? '<div class="mc-card__badge">' + rating + '</div>' : '') +
-            '<div class="mc-card__icons"><div class="mc-card__icon">' + typeBadge + '</div></div>' +
-          '</div>' +
-          '<div class="mc-card__title">' + (m.title || '') + '</div>' +
-          '<div class="mc-card__year">' + year + '</div>' +
-        '</div>'
-      ).data('movie', m).data('collection', collectionId);
+      var row = $('<div class="mc-row"></div>');
+      for (var i = 0; i < movies.length; i++) {
+        var m = movies[i];
+        var url = posterUrl(m);
+        var year = getYear(m);
+        var rating = (m.vote_average || 0).toFixed(1);
+        var inAny = isMovieInAnyCollection(m.id);
+
+        var card = $(
+          '<div class="mc-card mc-card--portrait selector" data-mid="' + m.id + '">'
+          + '<div class="mc-card__poster" style="background-image:url(' + (url || '') + ')">'
+          + (m.vote_average > 0 ? '<div class="mc-card__badge">' + rating + '</div>' : '')
+          + (inAny ? '<div class="mc-card__menu"><span class="mc-card__menu-dots">\u2713</span></div>' : '')
+          + '</div>'
+          + '<div class="mc-card__info">'
+          + '<div class="mc-card__title">' + (m.title || m.name || '') + '</div>'
+          + '<div class="mc-card__subtitle">' + (m.original_title || m.original_name || '') + '</div>'
+          + (year ? '<div class="mc-card__year">' + year + '</div>' : '')
+          + '</div>'
+          + '</div>'
+        ).data('movie', m);
+        row.append(card);
+      }
+      enableWheelScroll(row[0]);
+      section.append(row);
+      contentEl.append(section);
     }
 
-    renderSections();
+    function bindEvents() {
+      scroll.render().off('hover:enter click');
+
+      scroll.render().on('hover:enter click', '.mc-tab[data-tab]', function() {
+        activeTab = $(this).attr('data-tab') || 'all';
+        localStorage.setItem(ACTIVE_TAB_KEY, activeTab);
+        renderPage();
+      });
+
+      scroll.render().on('hover:enter click', '[data-filter="toggle"]', function() {
+        showFilterDialog();
+      });
+
+      scroll.render().on('hover:enter click', '.mc-section__arrow', function() {
+        var dir = parseInt($(this).attr('data-dir')) || 0;
+        var row = $(this).closest('.mc-section').find('.mc-row')[0];
+        scrollRow(row, dir);
+      });
+
+      scroll.render().on('hover:enter click', '.mc-card[data-mid]', function() {
+        var movie = $(this).data('movie');
+        if (movie) openFullCard(movie);
+      });
+    }
+
+    function showFilterDialog() {
+      var cols = getCollections();
+      var items = [
+        { title: '\u2610  \u0412\u0441\u0435', _filter: 'all' }
+      ];
+      var k = Object.keys(cols);
+      for (var i = 0; i < k.length; i++) {
+        var key = k[i];
+        var col = cols[key];
+        var inF = activeFilter === key;
+        items.push({
+          title: (inF ? '\u2611' : '\u2610') + '  ' + col.name,
+          _filter: key
+        });
+      }
+      Lampa.Select.show({
+        title: '\u0424\u0438\u043B\u044C\u0442\u0440 \u043F\u043E \u043A\u043E\u043B\u043B\u0435\u043A\u0446\u0438\u044F\u043C',
+        items: items,
+        onSelect: function(item) {
+          activeFilter = item._filter || 'all';
+          localStorage.setItem(ACTIVE_FILTER_KEY, activeFilter);
+          renderPage();
+        },
+        onBack: function() { renderPage(); }
+      });
+    }
 
     /* Controller */
     Lampa.Controller.add('mc_main', {
@@ -596,41 +896,6 @@
       back: function() { Lampa.Activity.backward(); }
     });
 
-    /* Events */
-    scroll.render().on('hover:enter click', '.mc-tab[data-tab]', function() {
-      var id = $(this).attr('data-tab') || 'all';
-      Lampa.Storage.set(FILTER_KEY, id);
-      tabsEl.find('.mc-tab').removeClass('active');
-      $(this).addClass('active');
-      renderSections();
-      try { scroll.update(); } catch(e) {}
-    });
-
-    scroll.render().on('hover:enter click', '.mc-sort__btn[data-sort]', function() {
-      var id = $(this).attr('data-sort');
-      Lampa.Storage.set(SORT_KEY, id);
-      sortEl.find('.mc-sort__btn').removeClass('active');
-      $(this).addClass('active');
-      renderSections();
-      try { scroll.update(); } catch(e) {}
-    });
-
-    scroll.render().on('hover:enter click', '.mc-scale__btn[data-scale]', function() {
-      var sid = $(this).attr('data-scale');
-      Lampa.Storage.set(SCALE_KEY, sid);
-      scaleEl.find('.mc-scale__btn').removeClass('active');
-      $(this).addClass('active');
-      renderSections();
-      try { scroll.update(); } catch(e) {}
-    });
-
-    scroll.render().on('hover:enter click', '.mc-card[data-mid]', function() {
-      var movie = $(this).data('movie');
-      if (movie) openFullCard(movie);
-    });
-
-    enableWheelScroll(scroll.render()[0]);
-
     Lampa.Activity.push({
       title: PLUGIN_NAME,
       component: 'mc_main',
@@ -638,13 +903,8 @@
     });
 
     setTimeout(function() {
-      var active = Lampa.Activity.active();
-      if (active && active.activity && active.activity.render) {
-        var render = active.activity.render();
-        render.empty().append(scroll.render());
-      }
+      renderPage();
       Lampa.Controller.toggle('mc_main');
-      try { scroll.update(); } catch(e) {}
     }, 300);
   }
 
@@ -655,15 +915,6 @@
       return 'display:inline-flex;align-items:center;gap:8px;cursor:pointer;padding:8px 16px;border-radius:8px;background:rgba(59,213,116,0.25);color:#3bd574;border:1px solid rgba(59,213,116,0.4);margin:4px;font-weight:500;';
     }
     return 'display:inline-flex;align-items:center;gap:8px;cursor:pointer;padding:8px 16px;border-radius:8px;background:rgba(255,255,255,0.12);color:#fff;border:1px solid rgba(255,255,255,0.2);margin:4px;';
-  }
-
-  function isMovieInAnyCollection(movieId) {
-    var cols = getCollections();
-    var k = Object.keys(cols);
-    for (var i = 0; i < k.length; i++) {
-      if (isInCollection(k[i], movieId)) return true;
-    }
-    return false;
   }
 
   function tryAddCardButton() {
@@ -682,11 +933,11 @@
 
       if (existing.length) {
         existing.attr('style', getButtonStyle(inAny));
-        existing.find('.mc-btn-text').text(PLUGIN_NAME + (inAny ? ' ✓' : ''));
+        existing.find('.mc-btn-text').text(PLUGIN_NAME + (inAny ? ' \u2713' : ''));
         return;
       }
 
-      var btn = $('<div class="full-start__button selector my-collections-btn" style="' + getButtonStyle(inAny) + '"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg><span class="mc-btn-text">' + PLUGIN_NAME + (inAny ? ' ✓' : '') + '</span></div>');
+      var btn = $('<div class="full-start__button selector my-collections-btn" style="' + getButtonStyle(inAny) + '"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg><span class="mc-btn-text">' + PLUGIN_NAME + (inAny ? ' \u2713' : '') + '</span></div>');
 
       btn.on('hover:enter click', function() {
         showAddToCollectionDialog(movie);
@@ -723,7 +974,7 @@
 
       if (!inserted) {
         var anyBtn = render.find('.selector').filter(function() {
-          return $(this).text().indexOf('Торрент') >= 0 || $(this).text().indexOf('Онлайн') >= 0 || $(this).text().indexOf('Трейлер') >= 0;
+          return $(this).text().indexOf('\u0422\u043E\u0440\u0440\u0435\u043D\u0442') >= 0 || $(this).text().indexOf('\u041E\u043D\u043B\u0430\u0439\u043D') >= 0 || $(this).text().indexOf('\u0422\u0440\u0435\u0439\u043B\u0435\u0440') >= 0;
         }).first();
         if (anyBtn.length) {
           anyBtn.parent().append(btn);

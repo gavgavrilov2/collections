@@ -1,8 +1,8 @@
 {
   "type": "video",
-  "version": "1.13.0",
+  "version": "2.0.0",
   "name": "Мои Коллекции",
-  "description": "Закладки, коллекции и таймер просмотра",
+  "description": "Закладки и коллекции фильмов и сериалов",
   "component": "my_collections",
   "icon": "assets/pixel.png"
 }
