@@ -1,6 +1,6 @@
 {
   "type": "video",
-  "version": "1.5.0",
+  "version": "1.6.0",
   "name": "Мои Коллекции",
   "description": "Закладки, коллекции и таймер просмотра",
   "component": "my_collections",
