@@ -219,7 +219,7 @@
     + '.mc-card__badge { position:absolute; top:8px; right:8px; background:rgba(0,0,0,0.8); color:#f5c518; font-size:13px; font-weight:700; padding:4px 8px; border-radius:6px; }'
     + '.mc-card__icons { position:absolute; bottom:8px; left:8px; display:flex; gap:4px; }'
     + '.mc-card__icon { width:26px; height:26px; border-radius:6px; background:rgba(0,0,0,0.7); display:flex; align-items:center; justify-content:center; font-size:13px; }'
-    + '.mc-card__title { margin-top:10px; font-size:15px; color:#fff; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; font-weight:500; }'
+    + '.mc-card__title { margin-top:10px; font-size:15px; color:#fff; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; font-weight:500; max-width:160px; box-sizing:border-box; }'
     + '.mc-card__year { margin-top:3px; font-size:13px; color:rgba(255,255,255,0.4); }'
 
     + '.mc-empty { padding:30px; color:rgba(255,255,255,0.3); font-size:16px; text-align:center; }'
@@ -253,7 +253,7 @@
     injectStyles();
 
     Lampa.Manifest.plugins = {
-      type: 'video', version: '1.7.0', name: PLUGIN_NAME,
+      type: 'video', version: '1.8.0', name: PLUGIN_NAME,
       description: 'Закладки, коллекции и таймер просмотра',
       component: 'my_collections',
       onContextMenu: function(){ return { name: PLUGIN_NAME, description: '' }; },
@@ -310,8 +310,7 @@
         var col = collections[key];
         var inCol = isInCollection(key, movie.id);
         items.push({
-          title: col.icon + ' ' + col.name,
-          subtitle: inCol ? 'Убрать' : 'Добавить',
+          title: (inCol ? '☑ ' : '☐ ') + col.icon + ' ' + col.name,
           _id: key, _movie: movie, _in: inCol
         });
       }
@@ -338,6 +337,7 @@
           }
           _collectionsCache = null;
           collections = getCollections();
+          keys = Object.keys(collections);
           refreshCardButton();
           showDialog();
         },
@@ -358,7 +358,13 @@
       { title: '🏋️ Боевики', name: 'Боевики', icon: '🏋️' },
       { title: '🔎 Детективы', name: 'Детективы', icon: '🔎' },
       { title: '🎭 Драмы', name: 'Драмы', icon: '🎭' },
-      { title: '📁 Своя коллекция', name: '', icon: '📁' }
+      { title: '🎵 Мюзиклы', name: 'Мюзиклы', icon: '🎵' },
+      { title: '⚔️ Исторические', name: 'Исторические', icon: '⚔️' },
+      { title: '🔫 Военные', name: 'Военные', icon: '🔫' },
+      { title: '🏎️ Криминал', name: 'Криминал', icon: '🏎️' },
+      { title: '🧩 Загадки', name: 'Загадки', icon: '🧩' },
+      { title: '🎄 Семейные', name: 'Семейные', icon: '🎄' },
+      { title: '🏫 Детские', name: 'Детские', icon: '🏫' }
     ];
 
     Lampa.Select.show({
@@ -369,41 +375,11 @@
       onSelect: function(item) {
         if (item._name) {
           createAndAdd(item._name, item._icon, movie);
-        } else {
-          showCustomNameDialog(movie);
+          showAddToCollectionDialog(movie);
         }
       },
       onBack: function() { showAddToCollectionDialog(movie); }
     });
-  }
-
-  function showCustomNameDialog(movie) {
-    var name = '';
-    var letters = 'АБВГДЕЖЗИКЛМНОПРСТУФХЦЧШЩЭЮЯабвгдежзиклмнопрстуфхцчшщэюя 0123456789';
-
-    function render() {
-      var items = [];
-      for (var i = 0; i < letters.length; i++) {
-        items.push({ title: letters[i], _char: letters[i], _add: true });
-      }
-      items.push({ title: '⌫ Удалить', _del: true });
-      items.push({ title: '✅ Готово: ' + (name || '...'), _done: true });
-
-      Lampa.Select.show({
-        title: 'Имя: ' + (name || '_'),
-        items: items,
-        onSelect: function(sel) {
-          if (sel._add) { name += sel._char; render(); }
-          else if (sel._del) { name = name.slice(0, -1); render(); }
-          else if (sel._done && name.trim()) { createAndAdd(name.trim(), '📁', movie); }
-        },
-        onBack: function() {
-          if (name.length > 0) { name = name.slice(0, -1); render(); }
-          else showCreateCollectionDialog(movie);
-        }
-      });
-    }
-    render();
   }
 
   function createAndAdd(name, icon, movie) {
@@ -436,7 +412,7 @@
     /* Header */
     scroll.append($(
       '<div class="mc-header">' +
-        '<div class="mc-header__title">🎬 ' + PLUGIN_NAME + '</div>' +
+        '<div class="mc-header__title">' + PLUGIN_NAME + '</div>' +
         (totalTime > 0 ? '<div class="mc-header__time">⏱ ' + formatTime(totalTime) + '</div>' : '') +
       '</div>'
     ));
