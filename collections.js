@@ -866,16 +866,24 @@
   }
 
   function openFullCard(movie) {
-    var mt = movie.media_type || detectMediaType(movie);
-    movie.media_type = mt;
-    movie.media = mt;
-    movie.source = movie.source || 'tmdb';
-    Lampa.Activity.push({
-      url: '',
+    var method = movie.media_type || detectMediaType(movie);
+    if (method === 'tv' || method === 'show' || method === 'tvshows') method = 'tv';
+    else method = 'movie';
+
+    Lampa.Router.call('full', {
+      id: movie.id || movie.tmdb_id || 0,
+      source: movie.source || 'tmdb',
+      original_name: movie.original_name || '',
+      original_title: movie.original_title || '',
       title: movie.title || movie.name || '',
-      component: 'full',
-      card: movie,
-      data: { movie: movie }
+      name: movie.name || '',
+      poster_path: movie.poster_path || '',
+      backdrop_path: movie.backdrop_path || '',
+      release_date: movie.release_date || '',
+      first_air_date: movie.first_air_date || '',
+      vote_average: movie.vote_average || 0,
+      genre_ids: movie.genre_ids || [],
+      overview: movie.overview || ''
     });
   }
 
