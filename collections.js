@@ -7,6 +7,14 @@
   var VIEWED_KEY = 'mc_last_viewed';
   var ACTIVE_TAB_KEY = 'mc_active_tab';
   var ACTIVE_FILTER_KEY = 'mc_active_filter';
+  var TV_SCALE_KEY = 'mc_tv_scale';
+
+  var TV_SCALE_PRESETS = {
+    compact: 0.85,
+    normal: 1.0,
+    large: 1.15,
+    xlarge: 1.3
+  };
 
   var DEFAULT_COLLECTIONS = {
     watched:     { name: 'Посмотрел',       icon: '\u25B6', movies: [], isDefault: true },
@@ -30,12 +38,22 @@
     return typeof Lampa !== 'undefined' && Lampa.Platform && (Lampa.Platform.tv() || Lampa.Platform.screen('tv'));
   }
 
+  function getTvScaleSetting() {
+    try {
+      var v = localStorage.getItem(TV_SCALE_KEY);
+      if (v && TV_SCALE_PRESETS[v] !== undefined) return TV_SCALE_PRESETS[v];
+    } catch(e) {}
+    return TV_SCALE_PRESETS.large;
+  }
+
   function getScreenScale() {
     var w = window.innerWidth || 1920;
     if (isTV()) {
-      if (w <= 1280) return 1.2;
-      if (w <= 1920) return 1.35;
-      return 1.15;
+      var base;
+      if (w <= 1280) base = 1.2;
+      else if (w <= 1920) base = 1.35;
+      else base = 1.15;
+      return base * getTvScaleSetting();
     }
     var scale = w / 1920;
     if (scale < 0.78) scale = 0.78;
@@ -120,7 +138,10 @@
   }
 
   function detectMediaType(movie) {
-    if (movie.media_type === 'tv' || movie.media_type === 'show' || movie.media_type === 'tvshows') return 'tv';
+    var mt = String(movie.media_type || '').toLowerCase();
+    var t = String(movie.type || '').toLowerCase();
+    if (mt === 'movie' || t === 'movie') return 'movie';
+    if (mt === 'tv' || mt === 'show' || mt === 'tvshows' || t === 'tv') return 'tv';
     if (movie.number_of_seasons || movie.number_of_episodes) return 'tv';
     if (movie.first_air_date && !movie.release_date) return 'tv';
     return 'movie';
@@ -130,15 +151,20 @@
     return detectMediaType(movie);
   }
 
-  function detectSubtype(movie) {
-    var ids = [];
-    if (movie.genre_ids && movie.genre_ids.length) {
-      ids = movie.genre_ids;
-    } else if (movie.genres && movie.genres.length) {
-      ids = movie.genres.map(function(g) { return g.id || 0; });
+  function isAnimation(movie) {
+    var ids = movie.genre_ids || [];
+    for (var i = 0; i < ids.length; i++) { if (Number(ids[i]) === 16) return true; }
+    var genres = movie.genres || [];
+    for (var i = 0; i < genres.length; i++) {
+      if (Number(genres[i].id) === 16) return true;
+      var name = String(genres[i].name || '').toLowerCase();
+      if (name === 'animation' || name === '\u0430\u043D\u0438\u043C\u0430\u0446\u0438\u044F') return true;
     }
-    for (var i = 0; i < ids.length; i++) { if (ids[i] === 16) return 'cartoon'; }
-    return '';
+    return false;
+  }
+
+  function detectSubtype(movie) {
+    return isAnimation(movie) ? 'cartoon' : '';
   }
 
   function getAllMovies() {
@@ -796,6 +822,13 @@
         if (cols[activeFilter]) filterLabel = cols[activeFilter].name;
       }
       tabsEl.append($('<div class="mc-filter-btn selector' + (activeFilter !== 'all' ? ' active' : '') + '" data-filter="toggle"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg><span class="mc-filter-btn__label">' + filterLabel + '</span></div>'));
+
+      if (isTV()) {
+        var scaleNames = { compact: '\u041A\u043E\u043C\u043F\u0430\u043A\u0442\u043D\u044B\u0439', normal: '\u041E\u0431\u044B\u0447\u043D\u044B\u0439', large: '\u041A\u0440\u0443\u043F\u043D\u044B\u0439', xlarge: '\u041E\u0447\u0435\u043D\u044C \u043A\u0440\u0443\u043F\u043D\u044B\u0439' };
+        var curScale = localStorage.getItem(TV_SCALE_KEY) || 'large';
+        tabsEl.append($('<div class="mc-filter-btn selector" data-tv-scale="open"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/></svg><span class="mc-filter-btn__label">' + (scaleNames[curScale] || scaleNames.large) + '</span></div>'));
+      }
+
       contentEl.append(tabsEl);
 
       /* Sections */
@@ -811,6 +844,8 @@
 
       bindEvents();
       try { scroll.update(); } catch(e) {}
+
+      Lampa.Controller.collectionSet(scroll.render(), scroll.render());
     }
 
     function renderLandscapeSection(title, items) {
@@ -881,6 +916,10 @@
         showFilterDialog();
       });
 
+      scroll.render().on('hover:enter click', '[data-tv-scale="open"]', function() {
+        showTvScaleDialog();
+      });
+
       scroll.render().on('hover:enter click', '.mc-section__arrow', function() {
         var dir = parseInt($(this).attr('data-dir')) || 0;
         var row = $(this).closest('.mc-section').find('.mc-row-scroll')[0];
@@ -912,6 +951,31 @@
         if (f > 0 && k[f-1] === activeFilter) { startIdx = f; break; }
       }
       showMcPopup({ title: '\u0424\u0438\u043B\u044C\u0442\u0440', items: filterItems, focusIdx: startIdx });
+    }
+
+    function showTvScaleDialog() {
+      var scaleNames = { compact: '\u041A\u043E\u043C\u043F\u0430\u043A\u0442\u043D\u044B\u0439', normal: '\u041E\u0431\u044B\u0447\u043D\u044B\u0439', large: '\u041A\u0440\u0443\u043F\u043D\u044B\u0439', xlarge: '\u041E\u0447\u0435\u043D\u044C \u043A\u0440\u0443\u043F\u043D\u044B\u0439' };
+      var cur = localStorage.getItem(TV_SCALE_KEY) || 'large';
+      var keys = ['compact', 'normal', 'large', 'xlarge'];
+      var items = [];
+      var startIdx = 2;
+      for (var i = 0; i < keys.length; i++) {
+        (function(k) {
+          items.push({
+            name: scaleNames[k],
+            checkbox: k === cur,
+            onSelect: function() {
+              localStorage.setItem(TV_SCALE_KEY, k);
+              closeMcPopup();
+              updateSizes();
+              injectStyles();
+              renderPage();
+            }
+          });
+          if (k === cur) startIdx = i;
+        })(keys[i]);
+      }
+      showMcPopup({ title: '\u0420\u0430\u0437\u043C\u0435\u0440 \u0438\u043D\u0442\u0435\u0440\u0444\u0435\u0439\u0441\u0430', items: items, focusIdx: startIdx });
     }
 
     /* Controller */
