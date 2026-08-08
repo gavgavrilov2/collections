@@ -21,7 +21,6 @@
     { id: 'movie',   label: 'Фильмы',      icon: '\uD83C\uDFAC' },
     { id: 'tv',      label: 'Сериалы',     icon: '\uD83D\uDCFA' },
     { id: 'cartoon', label: 'Мультфильмы', icon: '\uD83C\uDFA8' },
-    { id: 'anime',   label: 'Аниме',       icon: '\u26A1' },
     { id: 'fav',     label: 'Избранное',   icon: '\u2764\uFE0F' }
   ];
 
@@ -29,15 +28,33 @@
 
   function getScreenScale() {
     var w = window.innerWidth || 1920;
+    var isTV = typeof Lampa !== 'undefined' && Lampa.Platform && (Lampa.Platform.tv() || Lampa.Platform.screen('tv'));
     var scale = w / 1920;
-    if (scale < 0.78) scale = 0.78;
-    if (scale > 1.30) scale = 1.30;
+    if (isTV) {
+      if (scale < 1.0) scale = 1.0;
+      if (scale > 1.5) scale = 1.5;
+    } else {
+      if (scale < 0.78) scale = 0.78;
+      if (scale > 1.30) scale = 1.30;
+    }
     return scale;
   }
 
   function px(v) { return Math.round(v * getScreenScale()) + 'px'; }
 
-  function getCardW() { return Math.round(190 * getScreenScale()); }
+  function getCardW() {
+    var w = window.innerWidth || 1920;
+    var isTV = typeof Lampa !== 'undefined' && Lampa.Platform && (Lampa.Platform.tv() || Lampa.Platform.screen('tv'));
+    if (isTV) {
+      var pad = 48;
+      var gap = 24;
+      var count = Math.floor((w - pad) / (200 + gap));
+      if (count < 4) count = 4;
+      if (count > 10) count = 10;
+      return Math.floor((w - pad - gap * (count - 1)) / count);
+    }
+    return Math.round(190 * getScreenScale());
+  }
   function getCardH() { return Math.round(getCardW() * 1.5); }
   function getLandscapeW() { return Math.round(getCardW() * 2); }
   function getLandscapeH() { return Math.round(getLandscapeW() * 0.56); }
@@ -103,17 +120,10 @@
   }
 
   function detectSubtype(movie) {
-    var mt = detectMediaType(movie);
     var genres = movie.genre_ids || movie.genres || [];
     if (!Array.isArray(genres)) genres = [];
     if (genres.length && typeof genres[0] === 'object') genres = genres.map(function(g) { return g.id || 0; });
-    var hasAnim = false, hasJA = false;
-    for (var i = 0; i < genres.length; i++) { if (genres[i] === 16) hasAnim = true; }
-    var lang = (movie.original_language || '').toLowerCase();
-    if (lang === 'ja') hasJA = true;
-    if (mt === 'movie' && hasAnim) return 'cartoon';
-    if (mt === 'tv' && hasAnim && hasJA) return 'anime';
-    if (mt === 'tv' && hasAnim) return 'cartoon';
+    for (var i = 0; i < genres.length; i++) { if (genres[i] === 16) return 'cartoon'; }
     return '';
   }
 
@@ -133,8 +143,11 @@
   function getMoviesByCategory(cat) {
     var all = getAllMovies();
     if (cat === 'all') return all;
+    if (cat === 'movie') return all.filter(function(m) { return (m.category || detectCategory(m)) === 'movie'; });
+    if (cat === 'tv') return all.filter(function(m) { return (m.category || detectCategory(m)) === 'tv'; });
+    if (cat === 'cartoon') return all.filter(function(m) { return (m.subtype || detectSubtype(m)) === 'cartoon'; });
     if (cat === 'fav') return all.filter(function(m) { return isInCollection('favorite', m.id); });
-    return all.filter(function(m) { return (m.category || detectCategory(m)) === cat; });
+    return all;
   }
 
   function posterUrl(movie) {
