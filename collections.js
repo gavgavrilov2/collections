@@ -362,7 +362,26 @@
     + '.mc-card--portrait .mc-card__subtitle { font-size:11px; color:rgba(255,255,255,0.35); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin-top:2px; }'
     + '.mc-card--portrait .mc-card__year { font-size:12px; color:rgba(255,255,255,0.3); margin-top:2px; }'
 
-    + '.mc-empty { padding:40px 24px; color:rgba(255,255,255,0.25); font-size:16px; text-align:center; }';
+    + '.mc-empty { padding:40px 24px; color:rgba(255,255,255,0.25); font-size:16px; text-align:center; }'
+
+    + '.mc-popup { position:fixed; top:0; left:0; right:0; bottom:0; z-index:1000; display:flex; align-items:center; justify-content:center; background:rgba(0,0,0,0.5); }'
+    + '.mc-popup__box { background:#1a1b2e; border-radius:14px; width:420px; max-width:90vw; max-height:80vh; display:flex; flex-direction:column; overflow:hidden; }'
+    + '.mc-popup__head { padding:18px 22px 14px; }'
+    + '.mc-popup__title { font-size:20px; font-weight:700; color:#fff; }'
+    + '.mc-popup__list { padding:6px 10px 10px; overflow-y:auto; flex:1; }'
+    + '.mc-popup__item { display:flex; align-items:center; padding:13px 12px; border-radius:10px; cursor:pointer; transition:background .1s; gap:12px; }'
+    + '.mc-popup__item:hover,.mc-popup__item.focus { background:rgba(255,255,255,0.08); }'
+    + '.mc-popup__item-name { flex:1; font-size:16px; color:#fff; font-weight:500; }'
+    + '.mc-popup__item-count { font-size:12px; color:rgba(255,255,255,0.25); margin-right:8px; }'
+    + '.mc-popup__cb { width:28px; height:28px; border:3px solid rgba(255,255,255,0.25); border-radius:5px; flex-shrink:0; display:flex; align-items:center; justify-content:center; transition:all .15s; box-sizing:border-box; }'
+    + '.mc-popup__cb.on { border-color:#fff; }'
+    + '.mc-popup__cb svg { width:16px; height:16px; fill:none; stroke:#fff; stroke-width:3; stroke-linecap:round; stroke-linejoin:round; opacity:0; transform:scale(0.5); transition:all .15s; }'
+    + '.mc-popup__cb.on svg { opacity:1; transform:scale(1); }'
+    + '.mc-popup__item.focus .mc-popup__cb { border-color:rgba(255,255,255,0.5); }'
+    + '.mc-popup__item.focus .mc-popup__cb.on { border-color:#fff; }'
+    + '.mc-popup__create { display:flex; align-items:center; justify-content:center; gap:8px; padding:13px; margin:4px 10px 10px; border-radius:10px; background:rgba(59,213,116,0.1); border:1px solid rgba(59,213,116,0.25); cursor:pointer; transition:background .1s; }'
+    + '.mc-popup__create:hover,.mc-popup__create.focus { background:rgba(59,213,116,0.18); }'
+    + '.mc-popup__create-text { font-size:15px; color:#3bd574; font-weight:600; }';
 
     var style = document.createElement('style');
     style.id = 'mc-css';
@@ -430,44 +449,128 @@
   function showAddToCollectionDialog(movie) {
     var collections = getCollections();
     var keys = Object.keys(collections);
-
-    function buildItems() {
-      var items = [];
-      for (var i = 0; i < keys.length; i++) {
-        var key = keys[i];
-        var col = collections[key];
-        var inCol = isInCollection(key, movie.id);
-        items.push({
-          title: col.name,
-          checkbox: inCol,
-          _id: key, _movie: movie, _in: inCol
-        });
-      }
-      items.push({ title: '\u0421\u043E\u0437\u0434\u0430\u0442\u044C \u043A\u043E\u043B\u043B\u0435\u043A\u0446\u0438\u044E...', _create: true });
-      return items;
-    }
+    var focusIdx = 0;
 
     function showDialog() {
-      var items = buildItems();
-      Lampa.Select.show({
-        title: PLUGIN_NAME,
-        items: items,
-        onSelect: function(item) {
-          if (item._create) { showCreateCollectionDialog(movie); return; }
-          if (item._in) {
-            removeFromCollection(item._id, item._movie.id);
-            Lampa.Noty.show('\u0423\u0431\u0440\u0430\u043D\u043E \u0438\u0437 \u00AB' + collections[item._id].name + '\u00BB');
-          } else {
-            addToCollection(item._id, item._movie);
-            Lampa.Noty.show('\u0414\u043E\u0431\u0430\u0432\u043B\u0435\u043D\u043E \u0432 \u00AB' + collections[item._id].name + '\u00BB');
+      var existing = document.querySelector('.mc-popup');
+      if (existing) existing.remove();
+
+      keys = Object.keys(collections);
+
+      var overlay = document.createElement('div');
+      overlay.className = 'mc-popup';
+
+      var box = document.createElement('div');
+      box.className = 'mc-popup__box';
+
+      var head = document.createElement('div');
+      head.className = 'mc-popup__head';
+      var title = document.createElement('div');
+      title.className = 'mc-popup__title';
+      title.textContent = movie.title || movie.name || PLUGIN_NAME;
+      head.appendChild(title);
+      box.appendChild(head);
+
+      var list = document.createElement('div');
+      list.className = 'mc-popup__list';
+
+      var allItems = [];
+
+      for (var i = 0; i < keys.length; i++) {
+        (function(key) {
+          var col = collections[key];
+          var inCol = isInCollection(key, movie.id);
+          var item = document.createElement('div');
+          item.className = 'mc-popup__item' + (allItems.length === focusIdx ? ' focus' : '');
+          item.setAttribute('data-idx', allItems.length);
+
+          var name = document.createElement('span');
+          name.className = 'mc-popup__item-name';
+          name.textContent = col.name;
+
+          var count = document.createElement('span');
+          count.className = 'mc-popup__item-count';
+          count.textContent = (col.movies || []).length;
+
+          var cb = document.createElement('div');
+          cb.className = 'mc-popup__cb' + (inCol ? ' on' : '');
+          cb.innerHTML = '<svg viewBox="0 0 16 16"><polyline points="3 8 7 12 13 4"/></svg>';
+
+          item.appendChild(name);
+          item.appendChild(count);
+          item.appendChild(cb);
+          list.appendChild(item);
+
+          allItems.push({ el: item, key: key, cb: cb, inCol: inCol });
+
+          item.addEventListener('click', function() {
+            if (isInCollection(key, movie.id)) {
+              removeFromCollection(key, movie.id);
+              Lampa.Noty.show('\u0423\u0431\u0440\u0430\u043D\u043E \u0438\u0437 \u00AB' + col.name + '\u00BB');
+              cb.classList.remove('on');
+            } else {
+              addToCollection(key, movie);
+              Lampa.Noty.show('\u0414\u043E\u0431\u0430\u0432\u043B\u0435\u043D\u043E \u0432 \u00AB' + col.name + '\u00BB');
+              cb.classList.add('on');
+            }
+            _collectionsCache = null;
+            collections = getCollections();
+            refreshCardButton();
+          });
+        })(keys[i]);
+      }
+
+      var createBtn = document.createElement('div');
+      createBtn.className = 'mc-popup__create' + (allItems.length === focusIdx ? ' focus' : '');
+      createBtn.setAttribute('data-idx', allItems.length);
+      createBtn.innerHTML = '<span style="font-size:18px;color:#3bd574;">+</span><span class="mc-popup__create-text">\u0421\u043E\u0437\u0434\u0430\u0442\u044C \u043A\u043E\u043B\u043B\u0435\u043A\u0446\u0438\u044E</span>';
+      list.appendChild(createBtn);
+      allItems.push({ el: createBtn, _create: true });
+
+      box.appendChild(list);
+      overlay.appendChild(box);
+      document.body.appendChild(overlay);
+
+      function updateFocus() {
+        for (var j = 0; j < allItems.length; j++) {
+          allItems[j].el.classList.toggle('focus', j === focusIdx);
+        }
+        if (focusIdx < allItems.length) {
+          allItems[focusIdx].el.scrollIntoView({ block: 'nearest' });
+        }
+      }
+
+      overlay.addEventListener('click', function(e) {
+        if (e.target === overlay) { overlay.remove(); }
+      });
+
+      list.addEventListener('click', function(e) {
+        var el = e.target.closest('.mc-popup__item');
+        if (el) {
+          var idx = parseInt(el.getAttribute('data-idx'));
+          if (!isNaN(idx) && allItems[idx]) {
+            focusIdx = idx;
+            updateFocus();
+            allItems[idx].el.click();
           }
-          _collectionsCache = null;
-          collections = getCollections();
-          keys = Object.keys(collections);
-          refreshCardButton();
-          showDialog();
-        },
-        onBack: safeBack
+          return;
+        }
+        var cr = e.target.closest('.mc-popup__create');
+        if (cr) {
+          overlay.remove();
+          showCreateCollectionDialog(movie);
+        }
+      });
+
+      document.addEventListener('keydown', function handler(e) {
+        if (!document.querySelector('.mc-popup')) {
+          document.removeEventListener('keydown', handler);
+          return;
+        }
+        if (e.key === 'ArrowDown' || e.key === 'Down') { e.preventDefault(); focusIdx = Math.min(focusIdx + 1, allItems.length - 1); updateFocus(); }
+        else if (e.key === 'ArrowUp' || e.key === 'Up') { e.preventDefault(); focusIdx = Math.max(focusIdx - 1, 0); updateFocus(); }
+        else if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); if (allItems[focusIdx]) allItems[focusIdx].el.click(); }
+        else if (e.key === 'Escape' || e.key === 'Backspace') { e.preventDefault(); overlay.remove(); }
       });
     }
 
@@ -649,21 +752,72 @@
 
     function showFilterDialog() {
       var cols = getCollections();
-      var items = [{ title: '\u0412\u0441\u0435', checkbox: activeFilter === 'all', _filter: 'all' }];
+      var items = [{ title: '\u0412\u0441\u0435', _filter: 'all' }];
       var k = Object.keys(cols);
       for (var i = 0; i < k.length; i++) {
-        var key = k[i];
-        items.push({ title: cols[key].name, checkbox: activeFilter === key, _filter: key });
+        items.push({ title: cols[k[i]].name, _filter: k[i] });
       }
-      Lampa.Select.show({
-        title: '\u0424\u0438\u043B\u044C\u0442\u0440',
-        items: items,
-        onSelect: function(item) {
-          activeFilter = item._filter || 'all';
+      var focusIdx = 0;
+      for (var f = 0; f < items.length; f++) { if (items[f]._filter === activeFilter) { focusIdx = f; break; } }
+
+      var existing = document.querySelector('.mc-popup');
+      if (existing) existing.remove();
+
+      var overlay = document.createElement('div');
+      overlay.className = 'mc-popup';
+      var box = document.createElement('div');
+      box.className = 'mc-popup__box';
+      var head = document.createElement('div');
+      head.className = 'mc-popup__head';
+      var title = document.createElement('div');
+      title.className = 'mc-popup__title';
+      title.textContent = '\u0424\u0438\u043B\u044C\u0442\u0440';
+      head.appendChild(title);
+      box.appendChild(head);
+      var list = document.createElement('div');
+      list.className = 'mc-popup__list';
+
+      var allItems = [];
+      for (var fi = 0; fi < items.length; fi++) {
+        var item = document.createElement('div');
+        item.className = 'mc-popup__item' + (fi === focusIdx ? ' focus' : '');
+        item.setAttribute('data-idx', fi);
+        var name = document.createElement('span');
+        name.className = 'mc-popup__item-name';
+        name.textContent = items[fi].title;
+        var cb = document.createElement('div');
+        cb.className = 'mc-popup__cb' + (items[fi]._filter === activeFilter ? ' on' : '');
+        cb.innerHTML = '<svg viewBox="0 0 16 16"><polyline points="3 8 7 12 13 4"/></svg>';
+        item.appendChild(name);
+        item.appendChild(cb);
+        list.appendChild(item);
+        allItems.push({ el: item, filter: items[fi]._filter, cb: cb });
+      }
+      box.appendChild(list);
+      overlay.appendChild(box);
+      document.body.appendChild(overlay);
+
+      function updateFocus() {
+        for (var j = 0; j < allItems.length; j++) allItems[j].el.classList.toggle('focus', j === focusIdx);
+      }
+
+      allItems.forEach(function(ai) {
+        ai.el.addEventListener('click', function() {
+          activeFilter = ai.filter;
           localStorage.setItem(ACTIVE_FILTER_KEY, activeFilter);
+          overlay.remove();
           renderPage();
-        },
-        onBack: function() { renderPage(); }
+        });
+      });
+
+      overlay.addEventListener('click', function(e) { if (e.target === overlay) overlay.remove(); });
+
+      document.addEventListener('keydown', function handler(e) {
+        if (!document.querySelector('.mc-popup')) { document.removeEventListener('keydown', handler); return; }
+        if (e.key === 'ArrowDown' || e.key === 'Down') { e.preventDefault(); focusIdx = Math.min(focusIdx + 1, allItems.length - 1); updateFocus(); }
+        else if (e.key === 'ArrowUp' || e.key === 'Up') { e.preventDefault(); focusIdx = Math.max(focusIdx - 1, 0); updateFocus(); }
+        else if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); if (allItems[focusIdx]) allItems[focusIdx].el.click(); }
+        else if (e.key === 'Escape' || e.key === 'Backspace') { e.preventDefault(); overlay.remove(); }
       });
     }
 
