@@ -231,9 +231,17 @@
   }
 
   function refreshCardButton() {
-    setTimeout(tryAddCardButton, 300);
-    setTimeout(tryAddCardButton, 1000);
-    setTimeout(tryAddCardButton, 2000);
+    var btn = $('.button--collection');
+    if (!btn.length) return;
+    btn.each(function() {
+      var el = $(this);
+      var mid = el.data('mid');
+      if (mid !== undefined) {
+        var inAny = isMovieInAnyCollection(mid);
+        el.toggleClass('button--collection-active', !!inAny);
+        el.find('span').text(PLUGIN_NAME + (inAny ? ' \u2713' : ''));
+      }
+    });
   }
 
   // ========== Tracking ==========
@@ -470,21 +478,11 @@
   function initListener() {
     if (typeof Lampa.Listener !== 'undefined') {
       Lampa.Listener.follow('full', function(e) {
-        if (e.type === 'complite' || e.type === 'start') {
-          setTimeout(tryAddCardButton, 500);
-          setTimeout(tryAddCardButton, 1500);
-          setTimeout(tryAddCardButton, 3000);
+        if (e.type === 'build' && e.name === 'start' && e.item && e.item.html) {
+          addCollectionButton(e.item.html, e.item.card);
         }
       });
     }
-    Lampa.Activity.listener.follow('complite', function(a) {
-      setTimeout(tryAddCardButton, 800);
-      setTimeout(tryAddCardButton, 2000);
-    });
-    Lampa.Activity.listener.follow('start', function(a) {
-      setTimeout(tryAddCardButton, 1200);
-      setTimeout(tryAddCardButton, 3000);
-    });
   }
 
   // ========== Popup (shared for Add-to-Collection & Filter) ==========
@@ -879,9 +877,26 @@
 
   // ========== Card Button ==========
 
-  function getButtonStyle(inAny) {
-    if (inAny) return 'display:inline-flex;align-items:center;gap:8px;cursor:pointer;padding:8px 16px;border-radius:8px;background:rgba(59,213,116,0.25);color:#3bd574;border:1px solid rgba(59,213,116,0.4);margin:4px;font-weight:500;';
-    return 'display:inline-flex;align-items:center;gap:8px;cursor:pointer;padding:8px 16px;border-radius:8px;background:rgba(255,255,255,0.12);color:#fff;border:1px solid rgba(255,255,255,0.2);margin:4px;';
+  function addCollectionButton(startHtml, card) {
+    if (!startHtml || !startHtml.length || !card || !card.id) return;
+
+    var container = startHtml.find('.full-start-new__buttons');
+    if (!container.length) return;
+
+    if (container.find('.button--collection').length) return;
+
+    var inAny = isMovieInAnyCollection(card.id);
+
+    var btn = $('<div class="full-start__button selector button--collection' + (inAny ? ' button--collection-active' : '') + '" data-mid="' + card.id + '"></div>');
+    btn.html('<svg xmlns="http://www.w3.org/2000/svg" width="21" height="32" viewBox="0 0 21 32" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 20l-7-5-7 5V5a1 1 0 0 1 1-1h12a1 1 0 0 1 1 1z"/></svg><span>' + PLUGIN_NAME + (inAny ? ' \u2713' : '') + '</span>');
+    btn.on('hover:enter click', function() { showAddToCollectionDialog(card); });
+
+    var optionsBtn = container.find('.button--options');
+    if (optionsBtn.length) {
+      optionsBtn.before(btn);
+    } else {
+      container.append(btn);
+    }
   }
 
   function openFullCard(movie) {
@@ -900,45 +915,6 @@
       genre_ids: movie.genre_ids || [],
       overview: movie.overview || ''
     });
-  }
-
-  function tryAddCardButton() {
-    try {
-      var active = Lampa.Activity.active();
-      if (!active) return;
-
-      var movie = active.card || (active.data && active.data.movie);
-      if (!movie || !movie.id) return;
-
-      var render = active.activity.render();
-      if (!render || !render.length) return;
-
-      var existing = render.find('.my-collections-btn');
-      var inAny = isMovieInAnyCollection(movie.id);
-
-      if (existing.length) {
-        existing.attr('style', getButtonStyle(inAny));
-        existing.find('.mc-btn-text').text(PLUGIN_NAME + (inAny ? ' \u2713' : ''));
-        return;
-      }
-
-      var btn = $('<div class="full-start__button selector my-collections-btn" style="' + getButtonStyle(inAny) + '"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg><span class="mc-btn-text">' + PLUGIN_NAME + (inAny ? ' \u2713' : '') + '</span></div>');
-
-      btn.on('hover:enter click', function() { showAddToCollectionDialog(movie); });
-
-      var targets = ['.full-start__buttons .full-start__button:last-child', '.full-start__buttons', '.full-start__left', '.detail-page__buttons', '.card--more', '.buttons-full', '.full-start__tag', '.detail-page__header', '.detail-page__container', '.full-start', '.content'];
-
-      var inserted = false;
-      for (var t = 0; t < targets.length; t++) {
-        var el = render.find(targets[t]);
-        if (el.length) { el.last().after(btn); inserted = true; break; }
-      }
-      if (!inserted) {
-        var anyBtn = render.find('.selector').filter(function() { return $(this).text().indexOf('\u0422\u043E\u0440\u0440\u0435\u043D\u0442') >= 0 || $(this).text().indexOf('\u041E\u043D\u043B\u0430\u0439\u043D') >= 0 || $(this).text().indexOf('\u0422\u0440\u0435\u0439\u043B\u0435\u0440') >= 0; }).first();
-        if (anyBtn.length) { anyBtn.parent().append(btn); inserted = true; }
-      }
-      if (!inserted) render.prepend(btn);
-    } catch(e) {}
   }
 
   // ========== Init ==========
