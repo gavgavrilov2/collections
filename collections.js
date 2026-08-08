@@ -384,24 +384,24 @@
 
     + '.mc-empty { padding:' + px(40) + ' ' + px(24) + '; color:rgba(255,255,255,0.25); font-size:' + px(16) + '; text-align:center; }'
 
-    + '.mc-popup { position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); z-index:1000; display:flex; align-items:center; justify-content:center; }'
-    + '.mc-popup__box { background:#1a1b2e; border-radius:' + px(14) + '; width:' + px(420) + '; max-width:80vw; max-height:75vh; display:flex; flex-direction:column; overflow:hidden; box-shadow:0 8px 40px rgba(0,0,0,0.6); }'
-    + '.mc-popup__head { padding:' + px(18) + ' ' + px(22) + ' ' + px(14) + '; }'
-    + '.mc-popup__title { font-size:' + px(20) + '; font-weight:700; color:#fff; }'
-    + '.mc-popup__list { padding:' + px(6) + ' ' + px(10) + '; overflow-y:auto; flex:1; }'
-    + '.mc-popup__item { display:flex; align-items:center; padding:' + px(13) + ' ' + px(12) + '; border-radius:' + px(10) + '; cursor:pointer; transition:background .1s; gap:' + px(12) + '; }'
-    + '.mc-popup__item:hover,.mc-popup__item.focus { background:rgba(255,255,255,0.08); }'
-    + '.mc-popup__item-name { flex:1; font-size:' + px(16) + '; color:#fff; font-weight:500; }'
-    + '.mc-popup__item-count { font-size:' + px(12) + '; color:rgba(255,255,255,0.25); margin-right:' + px(8) + '; }'
-    + '.mc-popup__cb { width:' + px(28) + '; height:' + px(28) + '; border:' + px(2) + ' solid rgba(255,255,255,0.5); border-radius:' + px(5) + '; flex-shrink:0; display:flex; align-items:center; justify-content:center; transition:all .15s; box-sizing:border-box; background:rgba(255,255,255,0.05); }'
-    + '.mc-popup__cb.on { border-color:#3bd574; background:rgba(59,213,116,0.15); }'
-    + '.mc-popup__cb svg { width:' + px(16) + '; height:' + px(16) + '; fill:none; stroke:#3bd574; stroke-width:3; stroke-linecap:round; stroke-linejoin:round; opacity:0; transform:scale(0.5); transition:all .15s; }'
-    + '.mc-popup__cb.on svg { opacity:1; transform:scale(1); }'
-    + '.mc-popup__item.focus .mc-popup__cb { border-color:rgba(255,255,255,0.5); }'
-    + '.mc-popup__item.focus .mc-popup__cb.on { border-color:#3bd574; }'
-    + '.mc-popup__create { display:flex; align-items:center; justify-content:center; gap:' + px(8) + '; padding:' + px(13) + '; margin:' + px(4) + ' ' + px(10) + ' ' + px(10) + '; border-radius:' + px(10) + '; background:rgba(59,213,116,0.1); border:' + px(1) + ' solid rgba(59,213,116,0.25); cursor:pointer; transition:background .1s; }'
-    + '.mc-popup__create:hover,.mc-popup__create.focus { background:rgba(59,213,116,0.18); }'
-    + '.mc-popup__create-text { font-size:' + px(15) + '; color:#3bd574; font-weight:600; }';
+    + '.mc-popup { position:fixed; top:0; right:0; z-index:55; display:flex; align-items:stretch; justify-content:flex-end; width:100%; height:100%; }'
+    + '.mc-popup__box { background:#262829; width:35%; max-width:500px; display:flex; flex-direction:column; overflow:hidden; }'
+    + '@media (max-width:800px) { .mc-popup__box { width:50%; } }'
+    + '@media (max-width:500px) { .mc-popup__box { width:100%; max-width:100%; border-top-left-radius:' + px(20) + '; border-top-right-radius:' + px(20) + '; } }'
+    + '.mc-popup__head { padding:' + px(32) + '; padding-bottom:0; }'
+    + '.mc-popup__title { font-size:' + px(35) + '; font-weight:300; color:#fff; }'
+    + '.mc-popup__list { padding:' + px(8) + ' 0; overflow-y:auto; flex:1; }'
+    + '.mc-popup__item { display:flex; align-items:center; padding:' + px(24) + ' ' + px(32) + '; position:relative; cursor:pointer; transition:background .1s; gap:' + px(12) + '; }'
+    + '.mc-popup__item:hover,.mc-popup__item.focus { background:#353535; }'
+    + '.mc-popup__item-name { flex:1; font-size:' + px(21) + '; color:#fff; font-weight:400; line-height:1.3; overflow:hidden; text-overflow:ellipsis; }'
+    + '.mc-popup__item-count { font-size:' + px(18) + '; color:rgba(255,255,255,0.5); margin-right:' + px(8) + '; }'
+    + '.mc-popup__cb { width:' + px(22) + '; height:' + px(22) + '; border:' + px(3) + ' solid rgba(255,255,255,0.2); border-radius:' + px(5) + '; flex-shrink:0; position:relative; transition:all .15s; box-sizing:border-box; }'
+    + '.mc-popup__cb.on { border-color:#fff; }'
+    + '.mc-popup__cb.on::after { content:""; display:block; width:' + px(5) + '; height:' + px(9) + '; border-right:' + px(3) + ' solid #fff; border-bottom:' + px(3) + ' solid #fff; position:absolute; top:' + px(2) + '; right:' + px(3) + '; transform:rotate(45deg); }'
+    + '.mc-popup__cb svg { display:none; }'
+    + '.mc-popup__create { display:flex; align-items:center; justify-content:center; gap:' + px(8) + '; padding:' + px(24) + '; margin:' + px(4) + ' ' + px(10) + ' ' + px(10) + '; border-radius:' + px(10) + '; background:rgba(59,213,116,0.1); border:' + px(1) + ' solid rgba(59,213,116,0.25); cursor:pointer; transition:background .1s; }'
+    + '.mc-popup__create:hover,.mc-popup__create.focus { background:#353535; }'
+    + '.mc-popup__create-text { font-size:' + px(21) + '; color:#3bd574; font-weight:400; }';
 
     var style = document.createElement('style');
     style.id = 'mc-css';
@@ -474,8 +474,6 @@
   function closeMcPopup() {
     var el = document.querySelector('.mc-popup');
     if (el) el.remove();
-    var bd = document.querySelector('.mc-popup-backdrop');
-    if (bd) bd.remove();
     if (_popupController) {
       try { Lampa.Controller.remove('mc_popup'); } catch(e) {}
       _popupController = null;
@@ -492,10 +490,6 @@
     var items = opts.items;
     var titleText = opts.title;
     var focusIdx = opts.focusIdx || 0;
-
-    var backdrop = document.createElement('div');
-    backdrop.className = 'mc-popup-backdrop';
-    backdrop.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;z-index:999;background:rgba(0,0,0,0.5);';
 
     var overlay = document.createElement('div');
     overlay.className = 'mc-popup';
@@ -548,7 +542,6 @@
 
     box.appendChild(list);
     overlay.appendChild(box);
-    document.body.appendChild(backdrop);
     document.body.appendChild(overlay);
 
     function updateFocus() {
@@ -570,14 +563,13 @@
     overlay.addEventListener('click', function(e) {
       if (e.target === overlay) closeMcPopup();
     });
-    backdrop.addEventListener('click', function() { closeMcPopup(); });
 
     $(list).on('click hover:enter', '.mc-popup__item', function() {
       var idx = parseInt($(this).attr('data-idx'));
       if (!isNaN(idx)) { focusIdx = idx; updateFocus(); selectItem(idx); }
     });
 
-    _prevController = Lampa.Controller.active() || 'mc_main';
+    _prevController = 'mc_main';
     _popupController = true;
 
     Lampa.Controller.add('mc_popup', {
