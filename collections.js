@@ -20,11 +20,11 @@
   var BASE_CARD_H = 240;
 
   var DEFAULT_COLLECTIONS = {
-    watched:     { name: 'Посмотрел',       icon: '👁', movies: [], isDefault: true },
-    will_watch:  { name: 'Буду смотреть',   icon: '👀', movies: [], isDefault: true },
-    want_watch:  { name: 'Хочу посмотреть', icon: '💡', movies: [], isDefault: true },
-    later:       { name: 'Потом',           icon: '⏰', movies: [], isDefault: true },
-    favorite:    { name: 'Избранное',       icon: '❤️', movies: [], isDefault: true }
+    watched:     { name: 'Посмотрел',       icon: '', movies: [], isDefault: true },
+    will_watch:  { name: 'Буду смотреть',   icon: '', movies: [], isDefault: true },
+    want_watch:  { name: 'Хочу посмотреть', icon: '', movies: [], isDefault: true },
+    later:       { name: 'Потом',           icon: '', movies: [], isDefault: true },
+    favorite:    { name: 'Избранное',       icon: '', movies: [], isDefault: true }
   };
 
   var SORT_OPTIONS = [
@@ -218,11 +218,17 @@
     + '.mc-card__poster { border-radius:10px; background-size:cover; background-position:center top; background-color:rgba(255,255,255,0.06); position:relative; overflow:hidden; }'
     + '.mc-card__badge { position:absolute; top:8px; right:8px; background:rgba(0,0,0,0.8); color:#f5c518; font-size:13px; font-weight:700; padding:4px 8px; border-radius:6px; }'
     + '.mc-card__icons { position:absolute; bottom:8px; left:8px; display:flex; gap:4px; }'
-    + '.mc-card__icon { width:26px; height:26px; border-radius:6px; background:rgba(0,0,0,0.7); display:flex; align-items:center; justify-content:center; font-size:13px; }'
-    + '.mc-card__title { margin-top:10px; font-size:15px; color:#fff; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; font-weight:500; max-width:160px; box-sizing:border-box; }'
+    + '.mc-card__icon { height:22px; border-radius:4px; background:rgba(0,0,0,0.75); display:flex; align-items:center; justify-content:center; font-size:11px; color:rgba(255,255,255,0.8); padding:0 6px; white-space:nowrap; }'
+    + '.mc-card__title { margin-top:10px; font-size:15px; color:#fff; overflow:hidden; text-overflow:ellipsis; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; font-weight:500; max-width:100%; box-sizing:border-box; word-wrap:break-word; }'
     + '.mc-card__year { margin-top:3px; font-size:13px; color:rgba(255,255,255,0.4); }'
 
     + '.mc-empty { padding:30px; color:rgba(255,255,255,0.3); font-size:16px; text-align:center; }'
+
+    + '.mc-stats { display:flex; gap:20px; padding:16px 24px; justify-content:center; }'
+    + '.mc-stat { width:120px; height:120px; border-radius:50%; display:flex; flex-direction:column; align-items:center; justify-content:center; position:relative; }'
+    + '.mc-stat__bg { position:absolute; inset:0; border-radius:50%; opacity:0.15; }'
+    + '.mc-stat__num { font-size:32px; font-weight:800; color:#fff; position:relative; z-index:1; }'
+    + '.mc-stat__label { font-size:13px; color:rgba(255,255,255,0.6); position:relative; z-index:1; margin-top:2px; }'
 
     + '.mc-dialog-item { display:flex; align-items:center; justify-content:space-between; padding:14px 18px; cursor:pointer; border-radius:10px; background:rgba(255,255,255,0.04); margin-bottom:6px; transition:background .1s; }'
     + '.mc-dialog-item:hover,.mc-dialog-item.focus { background:rgba(255,255,255,0.1); }'
@@ -253,7 +259,7 @@
     injectStyles();
 
     Lampa.Manifest.plugins = {
-      type: 'video', version: '1.8.0', name: PLUGIN_NAME,
+      type: 'video', version: '1.9.0', name: PLUGIN_NAME,
       description: 'Закладки, коллекции и таймер просмотра',
       component: 'my_collections',
       onContextMenu: function(){ return { name: PLUGIN_NAME, description: '' }; },
@@ -310,11 +316,11 @@
         var col = collections[key];
         var inCol = isInCollection(key, movie.id);
         items.push({
-          title: (inCol ? '☑ ' : '☐ ') + col.icon + ' ' + col.name,
+          title: col.name + (inCol ? '  ✓' : ''),
           _id: key, _movie: movie, _in: inCol
         });
       }
-      items.push({ title: '➕ Создать коллекцию', _create: true });
+      items.push({ title: 'Создать коллекцию...', _create: true });
       return items;
     }
 
@@ -350,31 +356,31 @@
 
   function showCreateCollectionDialog(movie) {
     var predefinedNames = [
-      { title: '🎬 Документальные', name: 'Документальные', icon: '🎬' },
-      { title: '😂 Комедии', name: 'Комедии', icon: '😂' },
-      { title: '😱 Ужасы', name: 'Ужасы', icon: '😱' },
-      { title: '🚀 Фантастика', name: 'Фантастика', icon: '🚀' },
-      { title: '💕 Мелодрамы', name: 'Мелодрамы', icon: '💕' },
-      { title: '🏋️ Боевики', name: 'Боевики', icon: '🏋️' },
-      { title: '🔎 Детективы', name: 'Детективы', icon: '🔎' },
-      { title: '🎭 Драмы', name: 'Драмы', icon: '🎭' },
-      { title: '🎵 Мюзиклы', name: 'Мюзиклы', icon: '🎵' },
-      { title: '⚔️ Исторические', name: 'Исторические', icon: '⚔️' },
-      { title: '🔫 Военные', name: 'Военные', icon: '🔫' },
-      { title: '🏎️ Криминал', name: 'Криминал', icon: '🏎️' },
-      { title: '🧩 Загадки', name: 'Загадки', icon: '🧩' },
-      { title: '🎄 Семейные', name: 'Семейные', icon: '🎄' },
-      { title: '🏫 Детские', name: 'Детские', icon: '🏫' }
+      { title: 'Документальные', name: 'Документальные' },
+      { title: 'Комедии', name: 'Комедии' },
+      { title: 'Ужасы', name: 'Ужасы' },
+      { title: 'Фантастика', name: 'Фантастика' },
+      { title: 'Мелодрамы', name: 'Мелодрамы' },
+      { title: 'Боевики', name: 'Боевики' },
+      { title: 'Детективы', name: 'Детективы' },
+      { title: 'Драмы', name: 'Драмы' },
+      { title: 'Мюзиклы', name: 'Мюзиклы' },
+      { title: 'Исторические', name: 'Исторические' },
+      { title: 'Военные', name: 'Военные' },
+      { title: 'Криминал', name: 'Криминал' },
+      { title: 'Загадки', name: 'Загадки' },
+      { title: 'Семейные', name: 'Семейные' },
+      { title: 'Детские', name: 'Детские' }
     ];
 
     Lampa.Select.show({
       title: 'Новая коллекция',
       items: predefinedNames.map(function(n) {
-        return { title: n.title, _name: n.name, _icon: n.icon };
+        return { title: n.title, _name: n.name };
       }),
       onSelect: function(item) {
         if (item._name) {
-          createAndAdd(item._name, item._icon, movie);
+          createAndAdd(item._name, '', movie);
           showAddToCollectionDialog(movie);
         }
       },
@@ -413,9 +419,26 @@
     scroll.append($(
       '<div class="mc-header">' +
         '<div class="mc-header__title">' + PLUGIN_NAME + '</div>' +
-        (totalTime > 0 ? '<div class="mc-header__time">⏱ ' + formatTime(totalTime) + '</div>' : '') +
       '</div>'
     ));
+
+    /* Stats */
+    var allMovies = [];
+    var ks = Object.keys(collections);
+    for (var si = 0; si < ks.length; si++) allMovies = allMovies.concat(collections[ks[si]].movies);
+    var totalItems = allMovies.length;
+    var totalTime = getWatchTime();
+    var totalDays = totalTime > 0 ? Math.max(1, Math.round(totalTime / 86400)) : 0;
+    var totalHours = totalTime > 0 ? Math.round(totalTime / 3600) : 0;
+
+    var statsEl = $(
+      '<div class="mc-stats">' +
+        '<div class="mc-stat"><div class="mc-stat__bg" style="background:linear-gradient(135deg,#7c4dff,#b47cff);"></div><div class="mc-stat__num">' + totalItems + '</div><div class="mc-stat__label">фильмов</div></div>' +
+        '<div class="mc-stat"><div class="mc-stat__bg" style="background:linear-gradient(135deg,#536dfe,#8fa8fe);"></div><div class="mc-stat__num">' + totalHours + '</div><div class="mc-stat__label">часов</div></div>' +
+        '<div class="mc-stat"><div class="mc-stat__bg" style="background:linear-gradient(135deg,#2196f3,#64b5f6);"></div><div class="mc-stat__num">' + totalDays + '</div><div class="mc-stat__label">дней</div></div>' +
+      '</div>'
+    );
+    scroll.append(statsEl);
 
     /* Tabs */
     var tabsEl = $('<div class="mc-tabs"></div>');
@@ -436,7 +459,7 @@
       var col = collections[key];
       tabsEl.append($(
         '<div class="mc-tab' + (activeFilter === key ? ' active' : '') + '" data-tab="' + key + '">' +
-          '<div class="mc-tab__name">' + col.icon + ' ' + col.name + '</div>' +
+          '<div class="mc-tab__name">' + col.name + '</div>' +
           '<div class="mc-tab__count">' + col.movies.length + ' <span class="mc-tab__max">/ 500</span></div>' +
         '</div>'
       ));
@@ -484,7 +507,7 @@
 
         section.append($(
           '<div class="mc-section__head">' +
-            '<div class="mc-section__title">' + c.icon + ' ' + c.name + '</div>' +
+            '<div class="mc-section__title">' + c.name + '</div>' +
           '</div>'
         ));
 
@@ -507,17 +530,14 @@
       var year = (m.release_date || '').substring(0, 4);
       var rating = (m.vote_average || 0).toFixed(1);
       var sz = getCardSize();
-      var icons = '';
-      if (isInCollection('watched', m.id)) icons += '<div class="mc-card__icon">👁</div>';
-      if (isInCollection('favorite', m.id)) icons += '<div class="mc-card__icon">❤️</div>';
-      if (isInCollection('will_watch', m.id)) icons += '<div class="mc-card__icon">👀</div>';
-      if (isInCollection('later', m.id)) icons += '<div class="mc-card__icon">⏰</div>';
+      var isTv = m.media_type === 'tv';
+      var typeBadge = isTv ? '<div class="mc-card__icon">Сериал</div>' : '<div class="mc-card__icon">Фильм</div>';
 
       return $(
         '<div class="mc-card selector" data-mid="' + m.id + '" data-col="' + collectionId + '">' +
           '<div class="mc-card__poster" style="width:' + sz.w + 'px;height:' + sz.h + 'px;background-image:url(' + (url || '') + ')">' +
             (m.vote_average > 0 ? '<div class="mc-card__badge">' + rating + '</div>' : '') +
-            (icons ? '<div class="mc-card__icons">' + icons + '</div>' : '') +
+            '<div class="mc-card__icons">' + typeBadge + '</div>' +
           '</div>' +
           '<div class="mc-card__title">' + (m.title || '') + '</div>' +
           '<div class="mc-card__year">' + year + '</div>' +
@@ -609,7 +629,7 @@
     var inCols = [];
     var k = Object.keys(cols);
     for (var i = 0; i < k.length; i++) {
-      if (isInCollection(k[i], movie.id)) inCols.push(cols[k[i]].icon + ' ' + cols[k[i]].name);
+      if (isInCollection(k[i], movie.id)) inCols.push(cols[k[i]].name);
     }
 
     var scroll = new Lampa.Scroll({ mask: true, over: true });
