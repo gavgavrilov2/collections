@@ -34,27 +34,73 @@
 
   function getCollections() {
     if (_collectionsCache) return _collectionsCache;
+
+    var fromLocal = null;
+    var fromStorage = null;
+
     try {
       var raw = localStorage.getItem(STORAGE_KEY);
       if (raw) {
-        var data = JSON.parse(raw);
-        if (data && typeof data === 'object' && data.watched) {
-          _collectionsCache = data;
-          return data;
+        var parsed = JSON.parse(raw);
+        if (parsed && typeof parsed === 'object' && parsed.watched && parsed.watched.movies) {
+          fromLocal = parsed;
         }
       }
     } catch(e) {}
+
     try {
-      var data2 = Lampa.Storage.get(STORAGE_KEY);
-      if (data2 && typeof data2 === 'object' && data2.watched) {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(data2));
-        _collectionsCache = data2;
-        return data2;
+      var sData = Lampa.Storage.get(STORAGE_KEY);
+      if (sData && typeof sData === 'object' && sData.watched && sData.watched.movies) {
+        fromStorage = sData;
       }
     } catch(e) {}
+
+    if (fromLocal && fromStorage) {
+      var merged = mergeCollections(fromLocal, fromStorage);
+      saveCollections(merged);
+      _collectionsCache = merged;
+      return merged;
+    }
+
+    if (fromLocal) {
+      _collectionsCache = fromLocal;
+      try { Lampa.Storage.set(STORAGE_KEY, fromLocal); } catch(e) {}
+      return fromLocal;
+    }
+
+    if (fromStorage) {
+      _collectionsCache = fromStorage;
+      try { localStorage.setItem(STORAGE_KEY, JSON.stringify(fromStorage)); } catch(e) {}
+      return fromStorage;
+    }
+
     var data = JSON.parse(JSON.stringify(DEFAULT_COLLECTIONS));
     saveCollections(data);
     return data;
+  }
+
+  function mergeCollections(a, b) {
+    var result = JSON.parse(JSON.stringify(a));
+    var k = Object.keys(b);
+    for (var i = 0; i < k.length; i++) {
+      var key = k[i];
+      if (!result[key]) {
+        result[key] = b[key];
+        continue;
+      }
+      var seen = {};
+      var mergedMovies = [];
+      var allA = result[key].movies || [];
+      var allB = b[key].movies || [];
+      for (var j = 0; j < allA.length; j++) {
+        if (!seen[allA[j].id]) { seen[allA[j].id] = true; mergedMovies.push(allA[j]); }
+      }
+      for (var j = 0; j < allB.length; j++) {
+        if (!seen[allB[j].id]) { seen[allB[j].id] = true; mergedMovies.push(allB[j]); }
+      }
+      result[key].movies = mergedMovies;
+    }
+    return result;
   }
 
   function saveCollections(data) {
@@ -84,9 +130,13 @@
   function detectMediaType(movie) {
     if (movie.media_type === 'tv' || movie.media_type === 'show') return 'tv';
     if (movie.first_air_date || movie.number_of_seasons || movie.number_of_episodes) return 'tv';
-    if (movie.name && movie.original_name && movie.name !== movie.original_name) return 'tv';
-    if (!movie.title && movie.name) return 'tv';
-    if (movie.release_date && movie.first_air_date && movie.first_air_date !== movie.release_date) return 'tv';
+    var name = movie.name || '';
+    var origName = movie.original_name || '';
+    if (name && origName && name !== origName) return 'tv';
+    if (!movie.title && name) return 'tv';
+    var release = movie.release_date || '';
+    var firstAir = movie.first_air_date || '';
+    if (release && firstAir && firstAir !== release) return 'tv';
     return 'movie';
   }
 
