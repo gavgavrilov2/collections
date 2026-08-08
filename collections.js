@@ -99,6 +99,10 @@
   }
 
   function detectCategory(movie) {
+    return detectMediaType(movie);
+  }
+
+  function detectSubtype(movie) {
     var mt = detectMediaType(movie);
     var genres = movie.genre_ids || movie.genres || [];
     if (!Array.isArray(genres)) genres = [];
@@ -109,7 +113,8 @@
     if (lang === 'ja') hasJA = true;
     if (mt === 'movie' && hasAnim) return 'cartoon';
     if (mt === 'tv' && hasAnim && hasJA) return 'anime';
-    return mt;
+    if (mt === 'tv' && hasAnim) return 'cartoon';
+    return '';
   }
 
   function getAllMovies() {
@@ -172,6 +177,7 @@
       genre_ids: movie.genre_ids || [],
       media_type: mt,
       category: detectCategory(movie),
+      subtype: detectSubtype(movie),
       original_language: movie.original_language || '',
       tmdb_id: movie.id || movie.tmdb_id || 0,
       imdb_id: movie.imdb_id || '',
@@ -866,15 +872,11 @@
   }
 
   function openFullCard(movie) {
-    var method = movie.media_type || detectMediaType(movie);
-    if (method === 'tv' || method === 'show' || method === 'tvshows') method = 'tv';
-    else method = 'movie';
-
     Lampa.Router.call('full', {
       id: movie.id || movie.tmdb_id || 0,
       source: movie.source || 'tmdb',
-      original_name: movie.original_name || '',
-      original_title: movie.original_title || '',
+      original_name: movie.original_name || movie.name || '',
+      original_title: movie.original_title || movie.title || '',
       title: movie.title || movie.name || '',
       name: movie.name || '',
       poster_path: movie.poster_path || '',
