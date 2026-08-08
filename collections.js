@@ -6,6 +6,7 @@
   var TIME_KEY = 'my_collections_time';
   var SORT_KEY = 'my_collections_sort';
   var SCALE_KEY = 'my_collections_scale';
+  var FILTER_KEY = 'my_collections_filter';
 
   var SCALE_LEVELS = [
     { id: 'xs',  label: 'XS',  factor: 0.65 },
@@ -37,18 +38,13 @@
 
   function getCollections() {
     if (_collectionsCache) return _collectionsCache;
-
     try {
       var raw = localStorage.getItem(STORAGE_KEY);
       if (raw) {
         var data = JSON.parse(raw);
-        if (data && typeof data === 'object' && data.watched) {
-          _collectionsCache = data;
-          return data;
-        }
+        if (data && typeof data === 'object' && data.watched) { _collectionsCache = data; return data; }
       }
     } catch(e) {}
-
     try {
       var data2 = Lampa.Storage.get(STORAGE_KEY);
       if (data2 && typeof data2 === 'object' && data2.watched) {
@@ -57,10 +53,8 @@
         return data2;
       }
     } catch(e) {}
-
     var data = JSON.parse(JSON.stringify(DEFAULT_COLLECTIONS));
     saveCollections(data);
-    _collectionsCache = data;
     return data;
   }
 
@@ -124,7 +118,6 @@
   }
 
   function getWatchTime() { return Lampa.Storage.get(TIME_KEY, 0) || 0; }
-  function addWatchTime(s) { Lampa.Storage.set(TIME_KEY, getWatchTime() + s); }
 
   function formatTime(sec) {
     if (!sec || sec < 1) return '0 мин';
@@ -168,14 +161,14 @@
     return p;
   }
 
-  function splitByType(movies) {
-    var films = [], series = [];
-    for (var i = 0; i < movies.length; i++) {
-      var m = movies[i];
-      if (m.media_type === 'tv' || (m.genre_ids && m.genre_ids.indexOf(18) >= 0)) series.push(m);
-      else films.push(m);
-    }
-    return { films: films, series: series };
+  function enableWheelScroll(el) {
+    if (!el || !el.addEventListener) return;
+    el.addEventListener('wheel', function(e) {
+      if (Math.abs(e.deltaY) > Math.abs(e.deltaX)) {
+        e.preventDefault();
+        el.scrollLeft += e.deltaY;
+      }
+    }, { passive: false });
   }
 
   // ========== CSS ==========
@@ -183,63 +176,44 @@
   function injectStyles() {
     if (document.getElementById('my-collections-styles')) return;
     var css = ''
-
-    /* Page */
     + '.mc-page { padding:0 0 60px 0; box-sizing:border-box; width:100%; }'
 
-    /* Header */
     + '.mc-header { display:flex; align-items:center; padding:20px 24px 16px; gap:12px; }'
     + '.mc-header__title { font-size:32px; font-weight:700; color:#fff; flex:1; }'
     + '.mc-header__time { font-size:15px; color:#3bd574; background:rgba(59,213,116,0.1); padding:8px 16px; border-radius:8px; white-space:nowrap; }'
 
-    /* Tabs */
     + '.mc-tabs { display:flex; gap:12px; padding:0 24px 16px; overflow-x:auto; }'
     + '.mc-tabs::-webkit-scrollbar { display:none; }'
     + '.mc-tab { flex-shrink:0; padding:14px 24px; border-radius:12px; background:rgba(255,255,255,0.06); border:2px solid transparent; cursor:pointer; transition:all .15s; min-width:140px; text-align:center; }'
     + '.mc-tab:hover,.mc-tab.focus { background:rgba(255,255,255,0.12); border-color:rgba(255,255,255,0.15); }'
-    + '.mc-tab.active { background:rgba(255,255,255,0.1); border-color:rgba(255,255,255,0.2); }'
+    + '.mc-tab.active { background:rgba(255,255,255,0.1); border-color:rgba(255,255,255,0.25); }'
     + '.mc-tab__name { font-size:15px; color:rgba(255,255,255,0.6); margin-bottom:4px; }'
     + '.mc-tab.active .mc-tab__name { color:#fff; }'
     + '.mc-tab__count { font-size:24px; font-weight:700; color:#fff; }'
     + '.mc-tab__max { font-size:13px; color:rgba(255,255,255,0.3); }'
 
-    /* Sort */
     + '.mc-sort { display:flex; gap:10px; padding:8px 24px 12px; overflow-x:auto; }'
     + '.mc-sort::-webkit-scrollbar { display:none; }'
     + '.mc-sort__btn { flex-shrink:0; padding:10px 20px; border-radius:8px; background:rgba(255,255,255,0.06); color:rgba(255,255,255,0.6); font-size:14px; cursor:pointer; transition:all .15s; }'
     + '.mc-sort__btn:hover,.mc-sort__btn.focus { background:rgba(255,255,255,0.12); color:#fff; }'
     + '.mc-sort__btn.active { background:rgba(59,213,116,0.15); color:#3bd574; }'
 
-    /* Scale */
     + '.mc-scale { display:flex; gap:8px; padding:4px 24px 12px; align-items:center; }'
     + '.mc-scale__label { font-size:14px; color:rgba(255,255,255,0.5); margin-right:4px; white-space:nowrap; }'
     + '.mc-scale__btn { flex-shrink:0; width:44px; height:38px; border-radius:8px; background:rgba(255,255,255,0.06); color:rgba(255,255,255,0.6); font-size:14px; font-weight:600; cursor:pointer; display:flex; align-items:center; justify-content:center; transition:all .15s; }'
     + '.mc-scale__btn:hover,.mc-scale__btn.focus { background:rgba(255,255,255,0.12); color:#fff; }'
     + '.mc-scale__btn.active { background:rgba(59,213,116,0.15); color:#3bd574; }'
 
-    /* Section */
     + '.mc-section { margin-bottom:24px; }'
     + '.mc-section__head { display:flex; align-items:center; padding:8px 24px 12px; gap:8px; }'
     + '.mc-section__title { font-size:22px; font-weight:700; color:#fff; flex:1; }'
     + '.mc-section__more { font-size:14px; color:#3bd574; padding:8px 16px; border-radius:8px; background:rgba(59,213,116,0.1); cursor:pointer; transition:all .15s; }'
     + '.mc-section__more:hover,.mc-section__more.focus { background:rgba(59,213,116,0.2); }'
 
-    /* Subcategory row */
-    + '.mc-subcats { display:flex; gap:10px; padding:0 24px 12px; overflow-x:auto; }'
-    + '.mc-subcats::-webkit-scrollbar { display:none; }'
-    + '.mc-subcat { flex-shrink:0; display:flex; gap:10px; align-items:center; padding:10px 16px; border-radius:10px; background:rgba(255,255,255,0.06); cursor:pointer; transition:all .15s; }'
-    + '.mc-subcat:hover,.mc-subcat.focus { background:rgba(255,255,255,0.12); }'
-    + '.mc-subcat__thumb { width:44px; height:66px; border-radius:6px; background-size:cover; background-position:center; background-color:rgba(255,255,255,0.06); }'
-    + '.mc-subcat__info { display:flex; flex-direction:column; gap:2px; }'
-    + '.mc-subcat__name { font-size:14px; color:rgba(255,255,255,0.5); }'
-    + '.mc-subcat__num { font-size:20px; font-weight:700; color:#fff; }'
-
-    /* Movie row */
     + '.mc-row { display:flex; gap:16px; padding:0 24px; overflow-x:auto; overflow-y:hidden; scroll-behavior:smooth; }'
     + '.mc-row::-webkit-scrollbar { display:none; }'
 
-    /* Movie card */
-    + '.mc-card { flex-shrink:0; cursor:pointer; position:relative; transition:transform .15s; }'
+    + '.mc-card { flex-shrink:0; cursor:pointer; position:relative; transition:transform .15s; text-align:center; }'
     + '.mc-card:hover,.mc-card.focus { transform:scale(1.05); }'
     + '.mc-card__poster { border-radius:10px; background-size:cover; background-position:center top; background-color:rgba(255,255,255,0.06); position:relative; overflow:hidden; }'
     + '.mc-card__badge { position:absolute; top:8px; right:8px; background:rgba(0,0,0,0.8); color:#f5c518; font-size:13px; font-weight:700; padding:4px 8px; border-radius:6px; }'
@@ -248,8 +222,22 @@
     + '.mc-card__title { margin-top:10px; font-size:15px; color:#fff; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; font-weight:500; }'
     + '.mc-card__year { margin-top:3px; font-size:13px; color:rgba(255,255,255,0.4); }'
 
-    /* Empty */
     + '.mc-empty { padding:30px; color:rgba(255,255,255,0.3); font-size:16px; text-align:center; }'
+
+    + '.mc-dialog-item { display:flex; align-items:center; justify-content:space-between; padding:14px 18px; cursor:pointer; border-radius:10px; background:rgba(255,255,255,0.04); margin-bottom:6px; transition:background .1s; }'
+    + '.mc-dialog-item:hover,.mc-dialog-item.focus { background:rgba(255,255,255,0.1); }'
+    + '.mc-dialog-item__left { display:flex; align-items:center; gap:10px; flex:1; }'
+    + '.mc-dialog-item__icon { font-size:20px; }'
+    + '.mc-dialog-item__name { font-size:17px; color:#fff; font-weight:500; }'
+    + '.mc-dialog-item__check { font-size:20px; color:#3bd574; min-width:28px; text-align:right; }'
+    + '.mc-dialog-item__check.empty { color:rgba(255,255,255,0.15); }'
+
+    + '.mc-movie-info { padding:20px 24px; }'
+    + '.mc-movie-info__poster { width:200px; height:300px; border-radius:12px; background-size:cover; background-position:center; background-color:rgba(255,255,255,0.06); margin-bottom:16px; }'
+    + '.mc-movie-info__title { font-size:24px; font-weight:700; color:#fff; margin-bottom:6px; }'
+    + '.mc-movie-info__year { font-size:16px; color:rgba(255,255,255,0.5); margin-bottom:10px; }'
+    + '.mc-movie-info__rating { font-size:18px; color:#f5c518; font-weight:700; margin-bottom:12px; }'
+    + '.mc-movie-info__desc { font-size:15px; color:rgba(255,255,255,0.65); line-height:1.5; }';
 
     var style = document.createElement('style');
     style.id = 'my-collections-styles';
@@ -265,7 +253,7 @@
     injectStyles();
 
     Lampa.Manifest.plugins = {
-      type: 'video', version: '1.6.0', name: PLUGIN_NAME,
+      type: 'video', version: '1.7.0', name: PLUGIN_NAME,
       description: 'Закладки, коллекции и таймер просмотра',
       component: 'my_collections',
       onContextMenu: function(){ return { name: PLUGIN_NAME, description: '' }; },
@@ -284,6 +272,7 @@
       item.className = 'menu__item selector my-collections-menu-item';
       item.innerHTML = '<div class="menu__item-icon">🎬</div><div class="menu__item-text">' + PLUGIN_NAME + '</div>';
       item.addEventListener('click', function(){ openCollectionsPage(); });
+      item.addEventListener('hover:enter', function(){ openCollectionsPage(); });
       var first = menuList.querySelector('.menu__item');
       if (first) menuList.insertBefore(item, first); else menuList.appendChild(item);
     }, 2000);
@@ -312,38 +301,51 @@
 
   function showAddToCollectionDialog(movie) {
     var collections = getCollections();
-    var items = [];
     var keys = Object.keys(collections);
-    for (var i = 0; i < keys.length; i++) {
-      var key = keys[i];
-      var col = collections[key];
-      var inCol = isInCollection(key, movie.id);
-      items.push({
-        title: col.icon + ' ' + col.name + (inCol ? ' ✓' : ''),
-        subtitle: inCol ? 'Нажми чтобы убрать' : 'Добавить',
-        _id: key, _movie: movie, _in: inCol
+
+    function buildItems() {
+      var items = [];
+      for (var i = 0; i < keys.length; i++) {
+        var key = keys[i];
+        var col = collections[key];
+        var inCol = isInCollection(key, movie.id);
+        items.push({
+          title: col.icon + ' ' + col.name,
+          subtitle: inCol ? 'Убрать' : 'Добавить',
+          _id: key, _movie: movie, _in: inCol
+        });
+      }
+      items.push({ title: '➕ Создать коллекцию', _create: true });
+      return items;
+    }
+
+    function showDialog() {
+      var items = buildItems();
+      Lampa.Select.show({
+        title: PLUGIN_NAME,
+        items: items,
+        onSelect: function(item) {
+          if (item._create) {
+            showCreateCollectionDialog(movie);
+            return;
+          }
+          if (item._in) {
+            removeFromCollection(item._id, item._movie.id);
+            Lampa.Noty.show('Убрано из «' + collections[item._id].name + '»');
+          } else {
+            addToCollection(item._id, item._movie);
+            Lampa.Noty.show('Добавлено в «' + collections[item._id].name + '»');
+          }
+          _collectionsCache = null;
+          collections = getCollections();
+          refreshCardButton();
+          showDialog();
+        },
+        onBack: safeBack
       });
     }
-    items.push({ title: '➕ Создать коллекцию', _create: true });
 
-    Lampa.Select.show({
-      title: PLUGIN_NAME,
-      items: items,
-      onSelect: function(item) {
-        if (item._create) {
-          showCreateCollectionDialog(item._movie);
-        } else if (item._in) {
-          removeFromCollection(item._id, item._movie.id);
-          Lampa.Noty.show('Убрано из «' + collections[item._id].name + '»');
-          refreshCardButton();
-        } else {
-          addToCollection(item._id, item._movie);
-          Lampa.Noty.show('Добавлено в «' + collections[item._id].name + '»');
-          refreshCardButton();
-        }
-      },
-      onBack: safeBack
-    });
+    showDialog();
   }
 
   function showCreateCollectionDialog(movie) {
@@ -378,8 +380,6 @@
   function showCustomNameDialog(movie) {
     var name = '';
     var letters = 'АБВГДЕЖЗИКЛМНОПРСТУФХЦЧШЩЭЮЯабвгдежзиклмнопрстуфхцчшщэюя 0123456789';
-    var currentIdx = 0;
-    var currentChar = 'А';
 
     function render() {
       var items = [];
@@ -393,15 +393,9 @@
         title: 'Имя: ' + (name || '_'),
         items: items,
         onSelect: function(sel) {
-          if (sel._add) {
-            name += sel._char;
-            render();
-          } else if (sel._del) {
-            name = name.slice(0, -1);
-            render();
-          } else if (sel._done && name.trim()) {
-            createAndAdd(name.trim(), '📁', movie);
-          }
+          if (sel._add) { name += sel._char; render(); }
+          else if (sel._del) { name = name.slice(0, -1); render(); }
+          else if (sel._done && name.trim()) { createAndAdd(name.trim(), '📁', movie); }
         },
         onBack: function() {
           if (name.length > 0) { name = name.slice(0, -1); render(); }
@@ -409,7 +403,6 @@
         }
       });
     }
-
     render();
   }
 
@@ -435,58 +428,50 @@
     var collections = getCollections();
     var totalTime = getWatchTime();
     var sortId = getSortId();
-    var activeTab = null;
+    var activeFilter = Lampa.Storage.get(FILTER_KEY, 'all');
 
     var scroll = new Lampa.Scroll({ mask: true, over: true });
     scroll.body().addClass('mc-page');
 
     /* Header */
-    var header = $(
+    scroll.append($(
       '<div class="mc-header">' +
         '<div class="mc-header__title">🎬 ' + PLUGIN_NAME + '</div>' +
         (totalTime > 0 ? '<div class="mc-header__time">⏱ ' + formatTime(totalTime) + '</div>' : '') +
       '</div>'
-    );
-    scroll.append(header);
+    ));
 
     /* Tabs */
     var tabsEl = $('<div class="mc-tabs"></div>');
     var keys = Object.keys(collections);
 
-    /* "All" tab */
     var allCount = 0;
     for (var i = 0; i < keys.length; i++) allCount += collections[keys[i]].movies.length;
 
-    var allTab = $(
-      '<div class="mc-tab active" data-tab="all">' +
+    tabsEl.append($(
+      '<div class="mc-tab' + (activeFilter === 'all' ? ' active' : '') + '" data-tab="all">' +
         '<div class="mc-tab__name">Все</div>' +
         '<div class="mc-tab__count">' + allCount + ' <span class="mc-tab__max">/ 500</span></div>' +
       '</div>'
-    );
-    tabsEl.append(allTab);
+    ));
 
     for (var i = 0; i < keys.length; i++) {
       var key = keys[i];
       var col = collections[key];
-      var tab = $(
-        '<div class="mc-tab" data-tab="' + key + '">' +
+      tabsEl.append($(
+        '<div class="mc-tab' + (activeFilter === key ? ' active' : '') + '" data-tab="' + key + '">' +
           '<div class="mc-tab__name">' + col.icon + ' ' + col.name + '</div>' +
           '<div class="mc-tab__count">' + col.movies.length + ' <span class="mc-tab__max">/ 500</span></div>' +
         '</div>'
-      );
-      tab.data('id', key);
-      tabsEl.append(tab);
+      ));
     }
-
     scroll.append(tabsEl);
 
     /* Sort */
     var sortEl = $('<div class="mc-sort"></div>');
     for (var s = 0; s < SORT_OPTIONS.length; s++) {
       var opt = SORT_OPTIONS[s];
-      var btn = $('<div class="mc-sort__btn' + (opt.id === sortId ? ' active' : '') + '" data-sort="' + opt.id + '">' + opt.name + '</div>');
-      btn.data('sort', opt.id);
-      sortEl.append(btn);
+      sortEl.append($('<div class="mc-sort__btn' + (opt.id === sortId ? ' active' : '') + '" data-sort="' + opt.id + '">' + opt.name + '</div>'));
     }
     scroll.append(sortEl);
 
@@ -496,9 +481,7 @@
     scaleEl.append($('<div class="mc-scale__label">Размер:</div>'));
     for (var sc = 0; sc < SCALE_LEVELS.length; sc++) {
       var sl = SCALE_LEVELS[sc];
-      var scaleBtn = $('<div class="mc-scale__btn' + (sl.id === scaleId ? ' active' : '') + '" data-scale="' + sl.id + '">' + sl.label + '</div>');
-      scaleBtn.data('sid', sl.id);
-      scaleEl.append(scaleBtn);
+      scaleEl.append($('<div class="mc-scale__btn' + (sl.id === scaleId ? ' active' : '') + '" data-scale="' + sl.id + '">' + sl.label + '</div>'));
     }
     scroll.append(scaleEl);
 
@@ -510,57 +493,31 @@
       sectionsEl.empty();
       var cols = getCollections();
       var sId = getSortId();
+      var fId = Lampa.Storage.get(FILTER_KEY, 'all');
       var k = Object.keys(cols);
 
       for (var i = 0; i < k.length; i++) {
         var id = k[i];
         var c = cols[id];
         if (!c.movies.length) continue;
+        if (fId !== 'all' && fId !== id) continue;
 
         var sorted = sortMovies(c.movies, sId);
-        var types = splitByType(sorted);
 
         var section = $('<div class="mc-section" data-section="' + id + '"></div>');
 
-        /* Section header */
-        var head = $(
+        section.append($(
           '<div class="mc-section__head">' +
             '<div class="mc-section__title">' + c.icon + ' ' + c.name + '</div>' +
-            '<div class="mc-section__more selector" data-section-more="' + id + '">Еще</div>' +
           '</div>'
-        );
-        section.append(head);
+        ));
 
-        /* Subcategories */
-        var subcats = $('<div class="mc-subcats"></div>');
-        if (types.films.length) {
-          var filmThumb = types.films[0] ? posterUrl(types.films[0]) : '';
-          subcats.append($(
-            '<div class="mc-subcat selector" data-sub-type="films" data-sub-col="' + id + '">' +
-              '<div class="mc-subcat__thumb" style="background-image:url(' + (filmThumb || '') + ')"></div>' +
-              '<div class="mc-subcat__info"><div class="mc-subcat__name">Фильмы</div><div class="mc-subcat__num">' + types.films.length + '</div></div>' +
-            '</div>'
-          ));
-        }
-        if (types.series.length) {
-          var seriesThumb = types.series[0] ? posterUrl(types.series[0]) : '';
-          subcats.append($(
-            '<div class="mc-subcat selector" data-sub-type="series" data-sub-col="' + id + '">' +
-              '<div class="mc-subcat__thumb" style="background-image:url(' + (seriesThumb || '') + ')"></div>' +
-              '<div class="mc-subcat__info"><div class="mc-subcat__name">Сериалы</div><div class="mc-subcat__num">' + types.series.length + '</div></div>' +
-            '</div>'
-          ));
-        }
-        section.append(subcats);
-
-        /* Movie row */
         var row = $('<div class="mc-row"></div>');
-        for (var j = 0; j < sorted.length && j < 12; j++) {
-          var m = sorted[j];
-          row.append(createCard(m, id));
+        for (var j = 0; j < sorted.length; j++) {
+          row.append(createCard(sorted[j], id));
         }
+        enableWheelScroll(row[0]);
         section.append(row);
-
         sectionsEl.append(section);
       }
 
@@ -616,7 +573,11 @@
     /* Events */
     scroll.render().on('hover:enter click', '.mc-tab[data-tab]', function() {
       var id = $(this).attr('data-tab') || 'all';
-      openCollectionMovies(id);
+      Lampa.Storage.set(FILTER_KEY, id);
+      tabsEl.find('.mc-tab').removeClass('active');
+      $(this).addClass('active');
+      renderSections();
+      try { scroll.update(); } catch(e) {}
     });
 
     scroll.render().on('hover:enter click', '.mc-sort__btn[data-sort]', function() {
@@ -637,21 +598,12 @@
       try { scroll.update(); } catch(e) {}
     });
 
-    scroll.render().on('hover:enter click', '[data-section-more]', function() {
-      openCollectionMovies($(this).data('section-more'));
-    });
-
     scroll.render().on('hover:enter click', '.mc-card[data-mid]', function() {
       var movie = $(this).data('movie');
-      var col = $(this).data('collection');
-      if (movie) showMovieActions(col, movie);
+      if (movie) showMovieInfo(movie);
     });
 
-    scroll.render().on('hover:enter click', '.mc-subcat[data-sub-type]', function() {
-      var type = $(this).attr('data-sub-type');
-      var colId = $(this).attr('data-sub-col');
-      openCollectionMovies(colId, type);
-    });
+    enableWheelScroll(scroll.render()[0]);
 
     Lampa.Activity.push({
       title: PLUGIN_NAME,
@@ -670,138 +622,95 @@
     }, 300);
   }
 
-  // ========== Collection Movies Page ==========
+  // ========== Movie Info ==========
 
-  function openCollectionMovies(collectionId, filterType) {
-    var collections = getCollections();
-    var isAll = collectionId === 'all';
-    var col = isAll ? null : collections[collectionId];
-    if (!isAll && !col) return;
+  function showMovieInfo(movie) {
+    var url = posterUrl(movie);
+    var year = (movie.release_date || '').substring(0, 4);
+    var rating = (movie.vote_average || 0).toFixed(1);
 
-    var sortId = getSortId();
-    var allMovies = [];
-
-    if (isAll) {
-      var k = Object.keys(collections);
-      for (var i = 0; i < k.length; i++) {
-        allMovies = allMovies.concat(collections[k[i]].movies);
-      }
-    } else {
-      allMovies = col.movies;
+    var cols = getCollections();
+    var inCols = [];
+    var k = Object.keys(cols);
+    for (var i = 0; i < k.length; i++) {
+      if (isInCollection(k[i], movie.id)) inCols.push(cols[k[i]].icon + ' ' + cols[k[i]].name);
     }
-
-    var sorted = sortMovies(allMovies, sortId);
-    if (filterType === 'films') sorted = sorted.filter(function(m) { return m.media_type !== 'tv'; });
-    else if (filterType === 'series') sorted = sorted.filter(function(m) { return m.media_type === 'tv'; });
-    var isCustom = !isAll && collectionId.indexOf('custom_') === 0;
-
-    var titleText = isAll ? 'Все коллекции' : (col.icon + ' ' + col.name);
 
     var scroll = new Lampa.Scroll({ mask: true, over: true });
     scroll.body().addClass('mc-page');
 
-    /* Header */
     scroll.append($(
-      '<div class="mc-header">' +
-        '<div class="mc-header__title">' + titleText + ' <span style="font-size:15px;color:rgba(255,255,255,0.4);font-weight:400;">(' + sorted.length + ')</span></div>' +
+      '<div class="mc-movie-info">' +
+        '<div class="mc-movie-info__poster" style="background-image:url(' + (url || '') + ')"></div>' +
+        '<div class="mc-movie-info__title">' + (movie.title || '') + '</div>' +
+        (movie.original_title ? '<div class="mc-movie-info__year" style="font-size:14px;color:rgba(255,255,255,0.35);margin-top:-4px;">' + movie.original_title + '</div>' : '') +
+        '<div class="mc-movie-info__year">' + year + '</div>' +
+        (movie.vote_average > 0 ? '<div class="mc-movie-info__rating">⭐ ' + rating + '</div>' : '') +
+        (inCols.length ? '<div class="mc-movie-info__year" style="color:#3bd574;">' + inCols.join(', ') + '</div>' : '') +
+        (movie.overview ? '<div class="mc-movie-info__desc">' + movie.overview + '</div>' : '') +
       '</div>'
     ));
 
-    /* Sort */
-    var sortEl = $('<div class="mc-sort"></div>');
-    for (var s = 0; s < SORT_OPTIONS.length; s++) {
-      var opt = SORT_OPTIONS[s];
-      sortEl.append($('<div class="mc-sort__btn' + (opt.id === sortId ? ' active' : '') + '" data-sort="' + opt.id + '">' + opt.name + '</div>').data('sort', opt.id));
-    }
-    scroll.append(sortEl);
+    var actions = $('<div style="padding:0 24px 20px;display:flex;flex-wrap:wrap;gap:10px;"></div>');
+    actions.append($('<div class="mc-sort__btn selector" data-action="add" style="background:rgba(59,213,116,0.15);color:#3bd574;">📋 Добавить в коллекцию</div>'));
+    actions.append($('<div class="mc-sort__btn selector" data-action="open" style="background:rgba(255,255,255,0.08);color:#fff;">📄 Открыть карточку</div>'));
+    actions.append($('<div class="mc-sort__btn selector" data-action="remove" style="background:rgba(238,85,85,0.15);color:#e55;">🗑 Удалить</div>'));
+    scroll.append(actions);
 
-    /* Row */
-    var row = $('<div class="mc-row"></div>');
-    for (var j = 0; j < sorted.length; j++) {
-      row.append(createCardSimple(sorted[j], collectionId));
-    }
-    if (!sorted.length) row.append($('<div class="mc-empty">Пусто</div>'));
-    scroll.append(row);
+    scroll.render().on('hover:enter click', '[data-action="add"]', function() {
+      showAddToCollectionDialog(movie);
+    });
+    scroll.render().on('hover:enter click', '[data-action="open"]', function() {
+      var card = {
+        id: movie.id, title: movie.title || '',
+        original_title: movie.original_title || '',
+        poster_path: movie.poster_path || '',
+        backdrop_path: movie.backdrop_path || '',
+        release_date: movie.release_date || '',
+        vote_average: movie.vote_average || 0,
+        vote_count: movie.vote_count || 0,
+        overview: movie.overview || '',
+        genre_ids: movie.genre_ids || [],
+        source: movie.source || 'tmdb',
+        media_type: movie.media_type || 'movie'
+      };
+      Lampa.Activity.push({ title: card.title, component: 'full', card: card, data: { movie: card } });
+    });
+    scroll.render().on('hover:enter click', '[data-action="remove"]', function() {
+      var found = false;
+      var k2 = Object.keys(cols);
+      for (var i = 0; i < k2.length; i++) {
+        if (isInCollection(k2[i], movie.id)) {
+          removeFromCollection(k2[i], movie.id);
+          found = true;
+        }
+      }
+      if (found) {
+        Lampa.Noty.show('Удалено из всех коллекций');
+        refreshCardButton();
+        Lampa.Activity.backward();
+      }
+    });
 
-    /* Delete button for custom */
-    if (isCustom) {
-      var actions = $(
-        '<div style="padding:20px;display:flex;gap:10px;">' +
-          '<div class="mc-sort__btn selector" data-action="delete" style="color:#e55;">🗑 Удалить коллекцию</div>' +
-        '</div>'
-      );
-      scroll.append(actions);
-    }
+    enableWheelScroll(scroll.render()[0]);
 
-    function createCardSimple(m, colId) {
-      var url = posterUrl(m);
-      var year = (m.release_date || '').substring(0, 4);
-      var rating = (m.vote_average || 0).toFixed(1);
-      var sz = getCardSize();
-      return $(
-        '<div class="mc-card selector" data-mid="' + m.id + '" data-col="' + colId + '">' +
-          '<div class="mc-card__poster" style="width:' + sz.w + 'px;height:' + sz.h + 'px;background-image:url(' + (url || '') + ')">' +
-            (m.vote_average > 0 ? '<div class="mc-card__badge">' + rating + '</div>' : '') +
-          '</div>' +
-          '<div class="mc-card__title">' + (m.title || '') + '</div>' +
-          '<div class="mc-card__year">' + year + '</div>' +
-        '</div>'
-      ).data('movie', m).data('collection', colId);
-    }
-
-    /* Controller */
-    Lampa.Controller.add('mc_movies', {
+    Lampa.Controller.add('mc_info', {
       toggle: function() {
         Lampa.Controller.collectionSet(scroll.render(), scroll.render());
         Lampa.Controller.collectionFocus(false, scroll.render());
       },
       up: function() {
         if (Navigator.canmove('up')) Navigator.move('up');
-        else Lampa.Controller.toggle('head');
       },
       down: function() { Navigator.move('down'); },
       right: function() { Navigator.move('right'); },
-      left: function() {
-        if (Navigator.canmove('left')) Navigator.move('left');
-        else Lampa.Controller.toggle('menu');
-      },
+      left: function() { Navigator.move('left'); },
       back: function() { Lampa.Activity.backward(); }
     });
 
-    scroll.render().on('hover:enter click', '.mc-sort__btn[data-sort]', function() {
-      Lampa.Storage.set(SORT_KEY, $(this).attr('data-sort'));
-      Lampa.Activity.backward();
-      setTimeout(function() { openCollectionMovies(collectionId, filterType); }, 100);
-    });
-    scroll.render().on('hover:enter click', '.mc-card[data-mid]', function() {
-      var movie = $(this).data('movie');
-      var colId = $(this).data('collection');
-      if (movie) showMovieActions(colId, movie);
-    });
-    scroll.render().on('hover:enter click', '[data-action="delete"]', function() {
-      var cols = getCollections();
-      var delCol = cols[collectionId];
-      if (!delCol) return;
-      Lampa.Select.show({
-        title: 'Удалить коллекцию?',
-        items: [
-          { title: 'Да, удалить «' + delCol.name + '»', _yes: true },
-          { title: 'Нет, оставить', _no: true }
-        ],
-        onSelect: function(item) {
-          if (item._yes) {
-            deleteCollection(collectionId);
-            Lampa.Noty.show('Коллекция удалена');
-            try { Lampa.Activity.backward(); } catch(e) { Lampa.Controller.toggle('menu'); }
-          }
-        },
-        onBack: safeBack
-      });
-    });
-
     Lampa.Activity.push({
-      title: titleText,
-      component: 'mc_movies',
+      title: movie.title || 'Фильм',
+      component: 'mc_info',
       onBack: function() { Lampa.Activity.backward(); }
     });
 
@@ -811,86 +720,18 @@
         var render = active.activity.render();
         render.empty().append(scroll.render());
       }
-      Lampa.Controller.toggle('mc_movies');
+      Lampa.Controller.toggle('mc_info');
       try { scroll.update(); } catch(e) {}
     }, 300);
-  }
-
-  // ========== Movie Actions ==========
-
-  function showMovieActions(collectionId, movie) {
-    var cols = getCollections();
-    var inCols = [];
-    var k = Object.keys(cols);
-    for (var i = 0; i < k.length; i++) {
-      if (isInCollection(k[i], movie.id)) inCols.push(cols[k[i]].icon + ' ' + cols[k[i]].name);
-    }
-
-    var items = [
-      { title: '📄 Подробнее', _a: 'info' },
-      { title: '🔄 Переместить...', _a: 'move' },
-      { title: '🗑 Удалить', _a: 'remove' }
-    ];
-
-    Lampa.Select.show({
-      title: (movie.title || 'Фильм') + (inCols.length ? ' [' + inCols.join(', ') + ']' : ''),
-      items: items,
-      onSelect: function(item) {
-        if (item._a === 'info') {
-          var card = {
-            id: movie.id, title: movie.title || '',
-            original_title: movie.original_title || '',
-            poster_path: movie.poster_path || '',
-            backdrop_path: movie.backdrop_path || '',
-            release_date: movie.release_date || '',
-            vote_average: movie.vote_average || 0,
-            vote_count: movie.vote_count || 0,
-            overview: movie.overview || '',
-            genre_ids: movie.genre_ids || [],
-            source: movie.source || 'tmdb',
-            media_type: movie.media_type || 'movie'
-          };
-          Lampa.Activity.push({ title: card.title, component: 'full', card: card, data: { movie: card } });
-        } else if (item._a === 'remove') {
-          removeFromCollection(collectionId, movie.id);
-          Lampa.Noty.show('Удалено из коллекции');
-          refreshCardButton();
-        } else if (item._a === 'move') {
-          showMoveDialog(collectionId, movie);
-        }
-      },
-      onBack: safeBack
-    });
-  }
-
-  function showMoveDialog(fromId, movie) {
-    var collections = getCollections();
-    var items = [];
-    var keys = Object.keys(collections);
-    for (var i = 0; i < keys.length; i++) {
-      if (keys[i] === fromId) continue;
-      var c = collections[keys[i]];
-      items.push({ title: c.icon + ' ' + c.name, _id: keys[i] });
-    }
-    Lampa.Select.show({
-      title: 'Переместить «' + (movie.title || '') + '»',
-      items: items,
-      onSelect: function(item) {
-        removeFromCollection(fromId, movie.id);
-        addToCollection(item._id, movie);
-        Lampa.Noty.show('Перемещено');
-      },
-      onBack: safeBack
-    });
   }
 
   // ========== Card Button ==========
 
   function getButtonStyle(inAny) {
     if (inAny) {
-      return 'display:inline-flex;align-items:center;gap:8px;cursor:pointer;padding:8px 16px;border-radius:8px;background:rgba(255,255,255,0.85);color:#111;margin:4px;';
+      return 'display:inline-flex;align-items:center;gap:8px;cursor:pointer;padding:8px 16px;border-radius:8px;background:rgba(59,213,116,0.25);color:#3bd574;border:1px solid rgba(59,213,116,0.4);margin:4px;font-weight:500;';
     }
-    return 'display:inline-flex;align-items:center;gap:8px;cursor:pointer;padding:8px 16px;border-radius:8px;background:transparent;border:1px solid rgba(255,255,255,0.2);color:rgba(255,255,255,0.5);margin:4px;';
+    return 'display:inline-flex;align-items:center;gap:8px;cursor:pointer;padding:8px 16px;border-radius:8px;background:rgba(255,255,255,0.12);color:#fff;border:1px solid rgba(255,255,255,0.2);margin:4px;';
   }
 
   function isMovieInAnyCollection(movieId) {
@@ -957,7 +798,6 @@
         }).first();
         if (anyBtn.length) {
           anyBtn.parent().append(btn);
-          inserted = true;
         }
       }
     } catch(e) {}
@@ -965,9 +805,7 @@
 
   // ========== Init ==========
 
-  function start() {
-    startPlugin();
-  }
+  function start() { startPlugin(); }
 
   if (typeof Lampa !== 'undefined') start();
   else {
