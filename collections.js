@@ -131,10 +131,13 @@
   }
 
   function detectSubtype(movie) {
-    var genres = movie.genre_ids || movie.genres || [];
-    if (!Array.isArray(genres)) genres = [];
-    if (genres.length && typeof genres[0] === 'object') genres = genres.map(function(g) { return g.id || 0; });
-    for (var i = 0; i < genres.length; i++) { if (genres[i] === 16) return 'cartoon'; }
+    var ids = [];
+    if (movie.genre_ids && movie.genre_ids.length) {
+      ids = movie.genre_ids;
+    } else if (movie.genres && movie.genres.length) {
+      ids = movie.genres.map(function(g) { return g.id || 0; });
+    }
+    for (var i = 0; i < ids.length; i++) { if (ids[i] === 16) return 'cartoon'; }
     return '';
   }
 
@@ -198,7 +201,11 @@
       vote_average: movie.vote_average || 0,
       vote_count: movie.vote_count || 0,
       overview: movie.overview || '',
-      genre_ids: movie.genre_ids || [],
+      genre_ids: (function() {
+        if (movie.genre_ids && movie.genre_ids.length) return movie.genre_ids;
+        if (movie.genres && movie.genres.length) return movie.genres.map(function(g) { return g.id || 0; });
+        return [];
+      })(),
       media_type: mt,
       category: detectCategory(movie),
       subtype: detectSubtype(movie),
@@ -271,7 +278,8 @@
 
   function markViewed(movieId, movie) {
     var v = getViewed();
-    v[movieId] = { id: movieId, title: movie.title || movie.name || '', name: movie.name || movie.title || '', original_title: movie.original_title || '', original_name: movie.original_name || '', poster_path: movie.poster_path || '', backdrop_path: movie.backdrop_path || '', release_date: movie.release_date || movie.first_air_date || '', first_air_date: movie.first_air_date || '', vote_average: movie.vote_average || 0, genre_ids: movie.genre_ids || [], original_language: movie.original_language || '', timestamp: Date.now() };
+    var gids = movie.genre_ids && movie.genre_ids.length ? movie.genre_ids : (movie.genres && movie.genres.length ? movie.genres.map(function(g) { return g.id || 0; }) : []);
+    v[movieId] = { id: movieId, title: movie.title || movie.name || '', name: movie.name || movie.title || '', original_title: movie.original_title || '', original_name: movie.original_name || '', poster_path: movie.poster_path || '', backdrop_path: movie.backdrop_path || '', release_date: movie.release_date || movie.first_air_date || '', first_air_date: movie.first_air_date || '', vote_average: movie.vote_average || 0, genre_ids: gids, original_language: movie.original_language || '', timestamp: Date.now() };
     saveViewed(v);
   }
 
@@ -960,6 +968,7 @@
   }
 
   function openFullCard(movie) {
+    var gids = movie.genre_ids && movie.genre_ids.length ? movie.genre_ids : (movie.genres && movie.genres.length ? movie.genres.map(function(g) { return g.id || 0; }) : []);
     Lampa.Router.call('full', {
       id: movie.id || movie.tmdb_id || 0,
       source: movie.source || 'tmdb',
@@ -972,7 +981,7 @@
       release_date: movie.release_date || '',
       first_air_date: movie.first_air_date || '',
       vote_average: movie.vote_average || 0,
-      genre_ids: movie.genre_ids || [],
+      genre_ids: gids,
       overview: movie.overview || ''
     });
   }
