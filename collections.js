@@ -152,6 +152,7 @@
   }
 
   function detectCategory(movie) {
+    if (isAnimation(movie)) return 'cartoon';
     return detectMediaType(movie);
   }
 
@@ -172,8 +173,8 @@
   }
 
   function normalizeSavedMovie(movie) {
-    movie.category = detectMediaType(movie);
-    movie.media_type = movie.category;
+    movie.category = detectCategory(movie);
+    movie.media_type = detectMediaType(movie);
     movie.subtype = detectSubtype(movie);
     return movie;
   }
@@ -200,7 +201,7 @@
     if (cat === 'all') return all;
     if (cat === 'movie') return all.filter(function(m) { return m.category === 'movie'; });
     if (cat === 'tv') return all.filter(function(m) { return m.category === 'tv'; });
-    if (cat === 'cartoon') return all.filter(function(m) { return m.subtype === 'cartoon'; });
+    if (cat === 'cartoon') return all.filter(function(m) { return m.category === 'cartoon'; });
     if (cat === 'fav') return all.filter(function(m) { return isInCollection('favorite', m.id); });
     return all;
   }
