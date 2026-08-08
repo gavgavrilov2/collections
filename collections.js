@@ -419,7 +419,7 @@
     window.addEventListener('resize', onResize);
 
     Lampa.Manifest.plugins = {
-      type: 'video', version: '2.1.0', name: PLUGIN_NAME,
+      type: 'video', version: '2.1.1', name: PLUGIN_NAME,
       description: '\u0417\u0430\u043A\u043B\u0430\u0434\u043A\u0438 \u0438 \u043A\u043E\u043B\u043B\u0435\u043A\u0446\u0438\u0438',
       component: 'my_collections',
       onContextMenu: function(){ return { name: PLUGIN_NAME, description: '' }; },

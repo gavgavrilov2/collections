@@ -1,6 +1,6 @@
 {
   "type": "video",
-  "version": "2.1.0",
+  "version": "2.1.1",
   "name": "Мои Коллекции",
   "description": "Закладки и коллекции фильмов и сериалов",
   "component": "my_collections",
