@@ -83,28 +83,12 @@
   }
 
   function openFullCard(movie) {
-    var card = {
-      id: movie.id,
-      title: movie.title || movie.name || '',
-      name: movie.name || movie.title || '',
-      original_title: movie.original_title || movie.original_name || '',
-      original_name: movie.original_name || movie.original_title || '',
-      poster_path: movie.poster_path || '',
-      backdrop_path: movie.backdrop_path || '',
-      release_date: movie.release_date || movie.first_air_date || '',
-      first_air_date: movie.first_air_date || '',
-      vote_average: movie.vote_average || 0,
-      vote_count: movie.vote_count || 0,
-      overview: movie.overview || '',
-      genre_ids: movie.genre_ids || [],
-      source: movie.source || 'tmdb',
-      media_type: detectMediaType(movie)
-    };
+    movie.media_type = detectMediaType(movie);
     Lampa.Activity.push({
-      title: card.title,
+      title: movie.title || movie.name || '',
       component: 'full',
-      card: card,
-      data: { movie: card }
+      card: movie,
+      data: { movie: movie }
     });
   }
 
