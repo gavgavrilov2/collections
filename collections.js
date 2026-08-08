@@ -73,6 +73,13 @@
     return false;
   }
 
+  function detectMediaType(movie) {
+    if (movie.media_type === 'tv' || movie.media_type === 'show') return 'tv';
+    if (movie.first_air_date || movie.number_of_seasons || movie.number_of_episodes) return 'tv';
+    if (movie.name && movie.original_name && movie.name !== movie.original_name) return 'tv';
+    return 'movie';
+  }
+
   function addToCollection(collectionId, movie) {
     var collections = getCollections();
     var col = collections[collectionId];
@@ -91,7 +98,7 @@
       vote_count: movie.vote_count || 0,
       overview: movie.overview || '',
       genre_ids: movie.genre_ids || [],
-      media_type: movie.media_type || 'movie',
+      media_type: detectMediaType(movie),
       added_at: Date.now(),
       source: movie.source || 'tmdb'
     });
@@ -219,7 +226,7 @@
     + '.mc-card__badge { position:absolute; top:8px; right:8px; background:rgba(0,0,0,0.8); color:#f5c518; font-size:13px; font-weight:700; padding:4px 8px; border-radius:6px; }'
     + '.mc-card__icons { position:absolute; bottom:8px; left:8px; display:flex; gap:4px; }'
     + '.mc-card__icon { height:22px; border-radius:4px; background:rgba(0,0,0,0.75); display:flex; align-items:center; justify-content:center; font-size:11px; color:rgba(255,255,255,0.8); padding:0 6px; white-space:nowrap; }'
-    + '.mc-card__title { margin-top:10px; font-size:15px; color:#fff; overflow:hidden; text-overflow:ellipsis; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; font-weight:500; max-width:100%; box-sizing:border-box; word-wrap:break-word; }'
+    + '.mc-card__title { margin-top:10px; font-size:14px; color:#fff; overflow:hidden; text-overflow:ellipsis; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; font-weight:500; word-wrap:break-word; line-height:1.3; max-width:100%; box-sizing:border-box; }'
     + '.mc-card__year { margin-top:3px; font-size:13px; color:rgba(255,255,255,0.4); }'
 
     + '.mc-empty { padding:30px; color:rgba(255,255,255,0.3); font-size:16px; text-align:center; }'
@@ -259,7 +266,7 @@
     injectStyles();
 
     Lampa.Manifest.plugins = {
-      type: 'video', version: '1.9.0', name: PLUGIN_NAME,
+      type: 'video', version: '1.10.0', name: PLUGIN_NAME,
       description: 'Закладки, коллекции и таймер просмотра',
       component: 'my_collections',
       onContextMenu: function(){ return { name: PLUGIN_NAME, description: '' }; },
@@ -276,7 +283,7 @@
       if (!menuList || document.querySelector('.my-collections-menu-item')) return;
       var item = document.createElement('div');
       item.className = 'menu__item selector my-collections-menu-item';
-      item.innerHTML = '<div class="menu__item-icon">🎬</div><div class="menu__item-text">' + PLUGIN_NAME + '</div>';
+      item.innerHTML = '<div class="menu__item-text" style="font-size:18px;font-weight:600;">' + PLUGIN_NAME + '</div>';
       item.addEventListener('click', function(){ openCollectionsPage(); });
       item.addEventListener('hover:enter', function(){ openCollectionsPage(); });
       var first = menuList.querySelector('.menu__item');
@@ -427,15 +434,17 @@
     var ks = Object.keys(collections);
     for (var si = 0; si < ks.length; si++) allMovies = allMovies.concat(collections[ks[si]].movies);
     var totalItems = allMovies.length;
-    var totalTime = getWatchTime();
-    var totalDays = totalTime > 0 ? Math.max(1, Math.round(totalTime / 86400)) : 0;
-    var totalHours = totalTime > 0 ? Math.round(totalTime / 3600) : 0;
+    var totalFilms = 0, totalSeries = 0;
+    for (var ai = 0; ai < allMovies.length; ai++) {
+      if (detectMediaType(allMovies[ai]) === 'tv') totalSeries++;
+      else totalFilms++;
+    }
 
     var statsEl = $(
       '<div class="mc-stats">' +
-        '<div class="mc-stat"><div class="mc-stat__bg" style="background:linear-gradient(135deg,#7c4dff,#b47cff);"></div><div class="mc-stat__num">' + totalItems + '</div><div class="mc-stat__label">фильмов</div></div>' +
-        '<div class="mc-stat"><div class="mc-stat__bg" style="background:linear-gradient(135deg,#536dfe,#8fa8fe);"></div><div class="mc-stat__num">' + totalHours + '</div><div class="mc-stat__label">часов</div></div>' +
-        '<div class="mc-stat"><div class="mc-stat__bg" style="background:linear-gradient(135deg,#2196f3,#64b5f6);"></div><div class="mc-stat__num">' + totalDays + '</div><div class="mc-stat__label">дней</div></div>' +
+        '<div class="mc-stat"><div class="mc-stat__bg" style="background:linear-gradient(135deg,#7c4dff,#b47cff);"></div><div class="mc-stat__num">' + totalItems + '</div><div class="mc-stat__label">всего</div></div>' +
+        '<div class="mc-stat"><div class="mc-stat__bg" style="background:linear-gradient(135deg,#536dfe,#8fa8fe);"></div><div class="mc-stat__num">' + totalFilms + '</div><div class="mc-stat__label">фильмов</div></div>' +
+        '<div class="mc-stat"><div class="mc-stat__bg" style="background:linear-gradient(135deg,#2196f3,#64b5f6);"></div><div class="mc-stat__num">' + totalSeries + '</div><div class="mc-stat__label">сериалов</div></div>' +
       '</div>'
     );
     scroll.append(statsEl);
@@ -530,14 +539,14 @@
       var year = (m.release_date || '').substring(0, 4);
       var rating = (m.vote_average || 0).toFixed(1);
       var sz = getCardSize();
-      var isTv = m.media_type === 'tv';
-      var typeBadge = isTv ? '<div class="mc-card__icon">Сериал</div>' : '<div class="mc-card__icon">Фильм</div>';
+      var isTv = detectMediaType(m) === 'tv';
+      var typeBadge = isTv ? 'Сериал' : 'Фильм';
 
       return $(
-        '<div class="mc-card selector" data-mid="' + m.id + '" data-col="' + collectionId + '">' +
+        '<div class="mc-card selector" data-mid="' + m.id + '" data-col="' + collectionId + '" style="width:' + sz.w + 'px;">' +
           '<div class="mc-card__poster" style="width:' + sz.w + 'px;height:' + sz.h + 'px;background-image:url(' + (url || '') + ')">' +
             (m.vote_average > 0 ? '<div class="mc-card__badge">' + rating + '</div>' : '') +
-            '<div class="mc-card__icons">' + typeBadge + '</div>' +
+            '<div class="mc-card__icons"><div class="mc-card__icon">' + typeBadge + '</div></div>' +
           '</div>' +
           '<div class="mc-card__title">' + (m.title || '') + '</div>' +
           '<div class="mc-card__year">' + year + '</div>' +
