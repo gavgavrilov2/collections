@@ -107,9 +107,8 @@
     for (var i = 0; i < genres.length; i++) { if (genres[i] === 16) hasAnim = true; }
     var lang = (movie.original_language || '').toLowerCase();
     if (lang === 'ja') hasJA = true;
-    if (mt === 'tv' && hasAnim && hasJA) return 'anime';
-    if (mt === 'tv' && hasAnim) return 'anime';
     if (mt === 'movie' && hasAnim) return 'cartoon';
+    if (mt === 'tv' && hasAnim && hasJA) return 'anime';
     return mt;
   }
 
@@ -130,7 +129,7 @@
     var all = getAllMovies();
     if (cat === 'all') return all;
     if (cat === 'fav') return all.filter(function(m) { return isInCollection('favorite', m.id); });
-    return all.filter(function(m) { return detectCategory(m) === cat; });
+    return all.filter(function(m) { return (m.category || detectCategory(m)) === cat; });
   }
 
   function posterUrl(movie) {
@@ -156,6 +155,7 @@
     for (var i = 0; i < col.movies.length; i++) {
       if (col.movies[i].id === movie.id) return false;
     }
+    var mt = detectMediaType(movie);
     col.movies.push({
       id: movie.id || 0,
       title: movie.title || movie.name || '',
@@ -170,8 +170,12 @@
       vote_count: movie.vote_count || 0,
       overview: movie.overview || '',
       genre_ids: movie.genre_ids || [],
-      media_type: detectMediaType(movie),
+      media_type: mt,
+      category: detectCategory(movie),
       original_language: movie.original_language || '',
+      tmdb_id: movie.id || movie.tmdb_id || 0,
+      imdb_id: movie.imdb_id || '',
+      kinopoisk_id: movie.kinopoisk_id || '',
       added_at: Date.now(),
       source: movie.source || 'tmdb'
     });
@@ -862,11 +866,12 @@
   }
 
   function openFullCard(movie) {
-    var mt = detectMediaType(movie);
+    var mt = movie.media_type || detectMediaType(movie);
     movie.media_type = mt;
     movie.media = mt;
-    movie.source = 'tmdb';
+    movie.source = movie.source || 'tmdb';
     Lampa.Activity.push({
+      url: '',
       title: movie.title || movie.name || '',
       component: 'full',
       card: movie,
