@@ -275,14 +275,7 @@
     + '.mc-dialog-item__icon { font-size:20px; }'
     + '.mc-dialog-item__name { font-size:17px; color:#fff; font-weight:500; }'
     + '.mc-dialog-item__check { font-size:20px; color:#3bd574; min-width:28px; text-align:right; display:flex; align-items:center; justify-content:center; }'
-    + '.mc-dialog-item__check.empty { color:rgba(255,255,255,0.15); }'
-
-    + '.select-list .select-item { position:relative; padding-right:50px; }'
-    + '.select-list .select-item__checkbox { position:absolute; right:16px; top:50%; transform:translateY(-50%); width:26px; height:26px; border:2px solid rgba(255,255,255,0.45); border-radius:5px; background:transparent; display:flex; align-items:center; justify-content:center; transition:all .15s; }'
-    + '.select-list .select-item__checkbox.on { border-color:#3bd574; background:rgba(59,213,116,0.2); }'
-    + '.select-list .select-item__checkbox.on::after { content:""; width:12px; height:7px; border-left:2.5px solid #3bd574; border-bottom:2.5px solid #3bd574; transform:rotate(-45deg) translateY(-1px); }'
-    + '.select-list .select-item.focus .select-item__checkbox { border-color:rgba(255,255,255,0.7); }'
-    + '.select-list .select-item.focus .select-item__checkbox.on { border-color:#3bd574; }';
+    + '.mc-dialog-item__check.empty { color:rgba(255,255,255,0.15); }';
 
     var style = document.createElement('style');
     style.id = 'my-collections-styles';
@@ -356,13 +349,13 @@
         var key = keys[i];
         var col = collections[key];
         var inCol = isInCollection(key, movie.id);
+        var mark = inCol ? '☑' : '☐';
         items.push({
-          title: col.name,
-          checkbox: inCol,
+          title: mark + '  ' + col.name,
           _id: key, _movie: movie, _in: inCol
         });
       }
-      items.push({ title: 'Создать коллекцию...', _create: true });
+      items.push({ title: '➕  Создать коллекцию...', _create: true });
       return items;
     }
 
