@@ -65,10 +65,13 @@
 
   function getTvGap() {
     if (!isTV()) return 14;
+    var s = getTvScaleSetting();
     var w = window.innerWidth || 1920;
-    if (w <= 1280) return 16;
-    if (w <= 1920) return 20;
-    return 24;
+    var base;
+    if (w <= 1280) base = 16;
+    else if (w <= 1920) base = 20;
+    else base = 24;
+    return Math.round(base * s);
   }
 
   function getCardW() {
@@ -76,7 +79,8 @@
     if (isTV()) {
       var pad = 80;
       var gap = getTvGap();
-      var minCard = 320;
+      var s = getTvScaleSetting();
+      var minCard = Math.round(320 * s);
       var count = Math.floor((w - pad) / (minCard + gap));
       if (count < 4) count = 4;
       if (count > 8) count = 8;
@@ -167,6 +171,13 @@
     return isAnimation(movie) ? 'cartoon' : '';
   }
 
+  function normalizeSavedMovie(movie) {
+    movie.category = detectMediaType(movie);
+    movie.media_type = movie.category;
+    movie.subtype = detectSubtype(movie);
+    return movie;
+  }
+
   function getAllMovies() {
     var cols = getCollections();
     var all = [], seen = {};
@@ -174,7 +185,11 @@
     for (var i = 0; i < k.length; i++) {
       var m = cols[k[i]].movies || [];
       for (var j = 0; j < m.length; j++) {
-        if (!seen[m[j].id]) { seen[m[j].id] = true; all.push(m[j]); }
+        if (!seen[m[j].id]) {
+          seen[m[j].id] = true;
+          normalizeSavedMovie(m[j]);
+          all.push(m[j]);
+        }
       }
     }
     return all;
@@ -183,9 +198,9 @@
   function getMoviesByCategory(cat) {
     var all = getAllMovies();
     if (cat === 'all') return all;
-    if (cat === 'movie') return all.filter(function(m) { return (m.category || detectCategory(m)) === 'movie'; });
-    if (cat === 'tv') return all.filter(function(m) { return (m.category || detectCategory(m)) === 'tv'; });
-    if (cat === 'cartoon') return all.filter(function(m) { return (m.subtype || detectSubtype(m)) === 'cartoon'; });
+    if (cat === 'movie') return all.filter(function(m) { return m.category === 'movie'; });
+    if (cat === 'tv') return all.filter(function(m) { return m.category === 'tv'; });
+    if (cat === 'cartoon') return all.filter(function(m) { return m.subtype === 'cartoon'; });
     if (cat === 'fav') return all.filter(function(m) { return isInCollection('favorite', m.id); });
     return all;
   }
