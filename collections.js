@@ -437,10 +437,13 @@
         var key = keys[i];
         var col = collections[key];
         var inCol = isInCollection(key, movie.id);
-        var mark = inCol ? '\u2611' : '\u2610';
-        items.push({ title: mark + '  ' + col.name, _id: key, _movie: movie, _in: inCol });
+        items.push({
+          title: col.name,
+          checkbox: inCol,
+          _id: key, _movie: movie, _in: inCol
+        });
       }
-      items.push({ title: '\u2795  \u0421\u043E\u0437\u0434\u0430\u0442\u044C...', _create: true });
+      items.push({ title: '\u0421\u043E\u0437\u0434\u0430\u0442\u044C \u043A\u043E\u043B\u043B\u0435\u043A\u0446\u0438\u044E...', _create: true });
       return items;
     }
 
@@ -646,11 +649,11 @@
 
     function showFilterDialog() {
       var cols = getCollections();
-      var items = [{ title: (activeFilter === 'all' ? '\u2611' : '\u2610') + '  \u0412\u0441\u0435', _filter: 'all' }];
+      var items = [{ title: '\u0412\u0441\u0435', checkbox: activeFilter === 'all', _filter: 'all' }];
       var k = Object.keys(cols);
       for (var i = 0; i < k.length; i++) {
         var key = k[i];
-        items.push({ title: (activeFilter === key ? '\u2611' : '\u2610') + '  ' + cols[key].name, _filter: key });
+        items.push({ title: cols[key].name, checkbox: activeFilter === key, _filter: key });
       }
       Lampa.Select.show({
         title: '\u0424\u0438\u043B\u044C\u0442\u0440',
@@ -701,6 +704,7 @@
   function openFullCard(movie) {
     var mt = detectMediaType(movie);
     movie.media_type = mt;
+    movie.media = mt;
     movie.source = 'tmdb';
     Lampa.Activity.push({
       title: movie.title || movie.name || '',
