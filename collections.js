@@ -86,12 +86,18 @@
   }
 
   function openFullCard(movie) {
-    movie.media_type = detectMediaType(movie);
+    var mt = detectMediaType(movie);
+    movie.media_type = mt;
+    movie.source = 'tmdb';
     Lampa.Activity.push({
       title: movie.title || movie.name || '',
       component: 'full',
       card: movie,
-      data: { movie: movie }
+      data: {
+        movie: movie,
+        id: movie.id,
+        media_type: mt
+      }
     });
   }
 
