@@ -524,7 +524,30 @@
     + '.mc-empty { padding:40px 24px; color:rgba(255,255,255,0.25); font-size:16px; text-align:center; }'
 
     + '.mc-dialog-item { display:flex; align-items:center; justify-content:space-between; padding:14px 18px; cursor:pointer; border-radius:10px; background:rgba(255,255,255,0.04); margin-bottom:6px; transition:background .1s; }'
-    + '.mc-dialog-item:hover,.mc-dialog-item.focus { background:rgba(255,255,255,0.1); }';
+    + '.mc-dialog-item:hover,.mc-dialog-item.focus { background:rgba(255,255,255,0.1); }'
+
+    + '.mc-overlay { position:fixed; inset:0; z-index:200; display:flex; align-items:center; justify-content:center; background:rgba(0,0,0,0.6); backdrop-filter:blur(6px); }'
+    + '.mc-dialog { width:420px; max-width:90vw; max-height:80vh; background:#1a1a2e; border-radius:16px; overflow:hidden; display:flex; flex-direction:column; }'
+    + '.mc-dialog__header { padding:20px 24px 12px; border-bottom:1px solid rgba(255,255,255,0.06); }'
+    + '.mc-dialog__title { font-size:20px; font-weight:700; color:#fff; }'
+    + '.mc-dialog__list { padding:12px; overflow-y:auto; flex:1; }'
+    + '.mc-dialog__item { display:flex; align-items:center; justify-content:space-between; padding:14px 16px; border-radius:10px; cursor:pointer; transition:background .12s; }'
+    + '.mc-dialog__item:hover,.mc-dialog__item.focus { background:rgba(255,255,255,0.08); }'
+    + '.mc-dialog__item-left { display:flex; align-items:center; gap:12px; flex:1; }'
+    + '.mc-dialog__item-name { font-size:16px; color:#fff; font-weight:500; }'
+    + '.mc-dialog__item-count { font-size:13px; color:rgba(255,255,255,0.3); margin-left:4px; }'
+
+    + '.mc-checkbox { width:32px; height:32px; border:4px solid rgba(255,255,255,0.22); border-radius:6px; background:transparent; display:flex; align-items:center; justify-content:center; flex-shrink:0; transition:border-color .15s ease, transform .12s ease; box-sizing:border-box; }'
+    + '.mc-checkbox.on { border-color:rgba(255,255,255,0.95); }'
+    + '.mc-checkbox:hover { border-color:rgba(255,255,255,0.42); }'
+    + '.mc-checkbox.on:hover { border-color:#fff; }'
+    + '.mc-checkbox:active { transform:scale(0.94); }'
+    + '.mc-checkbox svg { width:20px; height:20px; fill:none; stroke:#fff; stroke-width:3; stroke-linecap:round; stroke-linejoin:round; opacity:0; transform:scale(0.6); transition:opacity .15s ease, transform .15s ease; }'
+    + '.mc-checkbox.on svg { opacity:1; transform:scale(1); }'
+
+    + '.mc-dialog__create { display:flex; align-items:center; justify-content:center; gap:8px; padding:14px; margin:0 12px 12px; border-radius:10px; background:rgba(59,213,116,0.12); border:1px solid rgba(59,213,116,0.3); cursor:pointer; transition:background .12s; }'
+    + '.mc-dialog__create:hover,.mc-dialog__create.focus { background:rgba(59,213,116,0.2); }'
+    + '.mc-dialog__create-text { font-size:15px; color:#3bd574; font-weight:600; }';
 
     var style = document.createElement('style');
     style.id = 'mc-styles-v2';
@@ -593,47 +616,110 @@
     var collections = getCollections();
     var keys = Object.keys(collections);
 
-    function buildItems() {
+    function showDialog() {
+      var overlay = $('<div class="mc-overlay"></div>');
+      var dialog = $('<div class="mc-dialog"></div>');
+
+      dialog.append($('<div class="mc-dialog__header"><div class="mc-dialog__title">' + PLUGIN_NAME + '</div></div>'));
+
+      var list = $('<div class="mc-dialog__list"></div>');
+
       var items = [];
       for (var i = 0; i < keys.length; i++) {
         var key = keys[i];
         var col = collections[key];
         var inCol = isInCollection(key, movie.id);
-        var mark = inCol ? '\u2611' : '\u2610';
-        items.push({
-          title: mark + '  ' + col.name,
-          _id: key, _movie: movie, _in: inCol
-        });
-      }
-      items.push({ title: '\u2795  \u0421\u043E\u0437\u0434\u0430\u0442\u044C \u043A\u043E\u043B\u043B\u0435\u043A\u0446\u0438\u044E...', _create: true });
-      return items;
-    }
+        var count = col.movies ? col.movies.length : 0;
 
-    function showDialog() {
-      var items = buildItems();
-      Lampa.Select.show({
-        title: PLUGIN_NAME,
-        items: items,
-        onSelect: function(item) {
-          if (item._create) {
-            showCreateCollectionDialog(movie);
-            return;
-          }
-          if (item._in) {
-            removeFromCollection(item._id, item._movie.id);
-            Lampa.Noty.show('\u0423\u0431\u0440\u0430\u043D\u043E \u0438\u0437 \u00AB' + collections[item._id].name + '\u00BB');
-          } else {
-            addToCollection(item._id, item._movie);
-            Lampa.Noty.show('\u0414\u043E\u0431\u0430\u0432\u043B\u0435\u043D\u043E \u0432 \u00AB' + collections[item._id].name + '\u00BB');
-          }
-          _collectionsCache = null;
-          collections = getCollections();
-          keys = Object.keys(collections);
-          refreshCardButton();
-          showDialog();
-        },
-        onBack: safeBack
+        var item = $(
+          '<div class="mc-dialog__item selector" data-key="' + key + '">'
+          + '<div class="mc-dialog__item-left">'
+          + '<div class="mc-dialog__item-name">' + col.name + '</div>'
+          + '<div class="mc-dialog__item-count">' + count + '</div>'
+          + '</div>'
+          + '<div class="mc-checkbox' + (inCol ? ' on' : '') + '">'
+          + '<svg viewBox="0 0 24 24"><polyline points="5 12.5 10 17 19 7"/></svg>'
+          + '</div>'
+          + '</div>'
+        ).data({ key: key, movie: movie, inCol: inCol });
+        list.append(item);
+        items.push(item);
+      }
+
+      dialog.append(list);
+
+      var createBtn = $(
+        '<div class="mc-dialog__create selector" data-action="create">'
+        + '<span style="font-size:18px;color:#3bd574;">+</span>'
+        + '<span class="mc-dialog__create-text">\u0421\u043E\u0437\u0434\u0430\u0442\u044C \u043A\u043E\u043B\u043B\u0435\u043A\u0446\u0438\u044E</span>'
+        + '</div>'
+      );
+      dialog.append(createBtn);
+
+      overlay.append(dialog);
+      $('body').append(overlay);
+
+      function closeDialog() {
+        overlay.remove();
+        Lampa.Controller.toggle('full');
+      }
+
+      function refreshDialog() {
+        overlay.remove();
+        collections = getCollections();
+        keys = Object.keys(collections);
+        showDialog();
+      }
+
+      overlay.on('click', function(e) {
+        if (e.target === overlay[0]) closeDialog();
       });
+
+      dialog.on('hover:enter click', '.mc-dialog__item', function() {
+        var key = $(this).data('key');
+        var movie = $(this).data('movie');
+        var wasIn = isInCollection(key, movie.id);
+
+        if (wasIn) {
+          removeFromCollection(key, movie.id);
+          Lampa.Noty.show('\u0423\u0431\u0440\u0430\u043D\u043E \u0438\u0437 \u00AB' + collections[key].name + '\u00BB');
+        } else {
+          addToCollection(key, movie);
+          Lampa.Noty.show('\u0414\u043E\u0431\u0430\u0432\u043B\u0435\u043D\u043E \u0432 \u00AB' + collections[key].name + '\u00BB');
+        }
+
+        _collectionsCache = null;
+        refreshCardButton();
+        refreshDialog();
+      });
+
+      dialog.on('hover:enter click', '[data-action="create"]', function() {
+        overlay.remove();
+        showCreateCollectionDialog(movie);
+      });
+
+      Lampa.Controller.add('mc_dialog', {
+        toggle: function() {
+          Lampa.Controller.collectionSet(dialog, dialog);
+          Lampa.Controller.collectionFocus(false, dialog);
+        },
+        up: function() { Navigator.move('up'); },
+        down: function() { Navigator.move('down'); },
+        right: function() { Navigator.move('right'); },
+        left: function() { Navigator.move('left'); },
+        back: function() {
+          overlay.remove();
+          Lampa.Controller.toggle('full');
+        }
+      });
+
+      setTimeout(function() {
+        Lampa.Controller.toggle('mc_dialog');
+        if (items.length) {
+          var firstItem = items[0];
+          firstItem.addClass('focus');
+        }
+      }, 100);
     }
 
     showDialog();
@@ -641,36 +727,71 @@
 
   function showCreateCollectionDialog(movie) {
     var predefinedNames = [
-      { title: '\u0414\u043E\u043A\u0443\u043C\u0435\u043D\u0442\u0430\u043B\u044C\u043D\u044B\u0435', name: '\u0414\u043E\u043A\u0443\u043C\u0435\u043D\u0442\u0430\u043B\u044C\u043D\u044B\u0435' },
-      { title: '\u041A\u043E\u043C\u0435\u0434\u0438\u0438', name: '\u041A\u043E\u043C\u0435\u0434\u0438\u0438' },
-      { title: '\u0423\u0436\u0430\u0441\u044B', name: '\u0423\u0436\u0430\u0441\u044B' },
-      { title: '\u0424\u0430\u043D\u0442\u0430\u0441\u0442\u0438\u043A\u0430', name: '\u0424\u0430\u043D\u0442\u0430\u0441\u0442\u0438\u043A\u0430' },
-      { title: '\u041C\u0435\u043B\u043E\u0434\u0440\u0430\u043C\u044B', name: '\u041C\u0435\u043B\u043E\u0434\u0440\u0430\u043C\u044B' },
-      { title: '\u0411\u043E\u0435\u0432\u0438\u043A\u0438', name: '\u0411\u043E\u0435\u0432\u0438\u043A\u0438' },
-      { title: '\u0414\u0435\u0442\u0435\u043A\u0442\u0438\u0432\u044B', name: '\u0414\u0435\u0442\u0435\u043A\u0442\u0438\u0432\u044B' },
-      { title: '\u0414\u0440\u0430\u043C\u044B', name: '\u0414\u0440\u0430\u043C\u044B' },
-      { title: '\u041C\u044E\u0437\u0438\u043A\u043B\u044B', name: '\u041C\u044E\u0437\u0438\u043A\u043B\u044B' },
-      { title: '\u0418\u0441\u0442\u043E\u0440\u0438\u0447\u0435\u0441\u043A\u0438\u0435', name: '\u0418\u0441\u0442\u043E\u0440\u0438\u0447\u0435\u0441\u043A\u0438\u0435' },
-      { title: '\u0412\u043E\u0435\u043D\u043D\u044B\u0435', name: '\u0412\u043E\u0435\u043D\u043D\u044B\u0435' },
-      { title: '\u041A\u0440\u0438\u043C\u0438\u043D\u0430\u043B', name: '\u041A\u0440\u0438\u043C\u0438\u043D\u0430\u043B' },
-      { title: '\u0417\u0430\u0433\u0430\u0434\u043A\u0438', name: '\u0417\u0430\u0433\u0430\u0434\u043A\u0438' },
-      { title: '\u0421\u0435\u043C\u0435\u0439\u043D\u044B\u0435', name: '\u0421\u0435\u043C\u0435\u0439\u043D\u044B\u0435' },
-      { title: '\u0414\u0435\u0442\u0441\u043A\u0438\u0435', name: '\u0414\u0435\u0442\u0441\u043A\u0438\u0435' }
+      '\u0414\u043E\u043A\u0443\u043C\u0435\u043D\u0442\u0430\u043B\u044C\u043D\u044B\u0435',
+      '\u041A\u043E\u043C\u0435\u0434\u0438\u0438',
+      '\u0423\u0436\u0430\u0441\u044B',
+      '\u0424\u0430\u043D\u0442\u0430\u0441\u0442\u0438\u043A\u0430',
+      '\u041C\u0435\u043B\u043E\u0434\u0440\u0430\u043C\u044B',
+      '\u0411\u043E\u0435\u0432\u0438\u043A\u0438',
+      '\u0414\u0435\u0442\u0435\u043A\u0442\u0438\u0432\u044B',
+      '\u0414\u0440\u0430\u043C\u044B',
+      '\u041C\u044E\u0437\u0438\u043A\u043B\u044B',
+      '\u0418\u0441\u0442\u043E\u0440\u0438\u0447\u0435\u0441\u043A\u0438\u0435',
+      '\u0412\u043E\u0435\u043D\u043D\u044B\u0435',
+      '\u041A\u0440\u0438\u043C\u0438\u043D\u0430\u043B',
+      '\u0417\u0430\u0433\u0430\u0434\u043A\u0438',
+      '\u0421\u0435\u043C\u0435\u0439\u043D\u044B\u0435',
+      '\u0414\u0435\u0442\u0441\u043A\u0438\u0435'
     ];
 
-    Lampa.Select.show({
-      title: '\u041D\u043E\u0432\u0430\u044F \u043A\u043E\u043B\u043B\u0435\u043A\u0446\u0438\u044F',
-      items: predefinedNames.map(function(n) {
-        return { title: n.title, _name: n.name };
-      }),
-      onSelect: function(item) {
-        if (item._name) {
-          createAndAdd(item._name, '', movie);
-          showAddToCollectionDialog(movie);
-        }
-      },
-      onBack: function() { showAddToCollectionDialog(movie); }
+    var overlay = $('<div class="mc-overlay"></div>');
+    var dialog = $('<div class="mc-dialog"></div>');
+
+    dialog.append($('<div class="mc-dialog__header"><div class="mc-dialog__title">\u041D\u043E\u0432\u0430\u044F \u043A\u043E\u043B\u043B\u0435\u043A\u0446\u0438\u044F</div></div>'));
+
+    var list = $('<div class="mc-dialog__list"></div>');
+
+    for (var i = 0; i < predefinedNames.length; i++) {
+      var name = predefinedNames[i];
+      var item = $(
+        '<div class="mc-dialog__item selector" data-name="' + name + '">'
+        + '<div class="mc-dialog__item-left">'
+        + '<div class="mc-dialog__item-name">' + name + '</div>'
+        + '</div>'
+        + '</div>'
+      );
+      list.append(item);
+    }
+
+    dialog.append(list);
+    overlay.append(dialog);
+    $('body').append(overlay);
+
+    dialog.on('hover:enter click', '.mc-dialog__item', function() {
+      var name = $(this).data('name');
+      if (name) {
+        createAndAdd(name, '', movie);
+        overlay.remove();
+        showAddToCollectionDialog(movie);
+      }
     });
+
+    Lampa.Controller.add('mc_create', {
+      toggle: function() {
+        Lampa.Controller.collectionSet(dialog, dialog);
+        Lampa.Controller.collectionFocus(false, dialog);
+      },
+      up: function() { Navigator.move('up'); },
+      down: function() { Navigator.move('down'); },
+      right: function() { Navigator.move('right'); },
+      left: function() { Navigator.move('left'); },
+      back: function() {
+        overlay.remove();
+        showAddToCollectionDialog(movie);
+      }
+    });
+
+    setTimeout(function() { Lampa.Controller.toggle('mc_create'); }, 100);
   }
 
   // ========== Scroll Helper ==========
@@ -953,8 +1074,14 @@
     });
 
     setTimeout(function() {
+      var active = Lampa.Activity.active();
+      if (active && active.activity && active.activity.render) {
+        var render = active.activity.render();
+        render.empty().append(scroll.render());
+      }
       renderPage();
       Lampa.Controller.toggle('mc_main');
+      try { scroll.update(); } catch(e) {}
     }, 300);
   }
 
