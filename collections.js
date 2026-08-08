@@ -77,7 +77,35 @@
     if (movie.media_type === 'tv' || movie.media_type === 'show') return 'tv';
     if (movie.first_air_date || movie.number_of_seasons || movie.number_of_episodes) return 'tv';
     if (movie.name && movie.original_name && movie.name !== movie.original_name) return 'tv';
+    if (!movie.title && movie.name) return 'tv';
+    if (movie.release_date && movie.first_air_date && movie.first_air_date !== movie.release_date) return 'tv';
     return 'movie';
+  }
+
+  function openFullCard(movie) {
+    var card = {
+      id: movie.id,
+      title: movie.title || movie.name || '',
+      name: movie.name || movie.title || '',
+      original_title: movie.original_title || movie.original_name || '',
+      original_name: movie.original_name || movie.original_title || '',
+      poster_path: movie.poster_path || '',
+      backdrop_path: movie.backdrop_path || '',
+      release_date: movie.release_date || movie.first_air_date || '',
+      first_air_date: movie.first_air_date || '',
+      vote_average: movie.vote_average || 0,
+      vote_count: movie.vote_count || 0,
+      overview: movie.overview || '',
+      genre_ids: movie.genre_ids || [],
+      source: movie.source || 'tmdb',
+      media_type: detectMediaType(movie)
+    };
+    Lampa.Activity.push({
+      title: card.title,
+      component: 'full',
+      card: card,
+      data: { movie: card }
+    });
   }
 
   function addToCollection(collectionId, movie) {
@@ -242,15 +270,8 @@
     + '.mc-dialog-item__left { display:flex; align-items:center; gap:10px; flex:1; }'
     + '.mc-dialog-item__icon { font-size:20px; }'
     + '.mc-dialog-item__name { font-size:17px; color:#fff; font-weight:500; }'
-    + '.mc-dialog-item__check { font-size:20px; color:#3bd574; min-width:28px; text-align:right; }'
-    + '.mc-dialog-item__check.empty { color:rgba(255,255,255,0.15); }'
-
-    + '.mc-movie-info { padding:20px 24px; }'
-    + '.mc-movie-info__poster { width:200px; height:300px; border-radius:12px; background-size:cover; background-position:center; background-color:rgba(255,255,255,0.06); margin-bottom:16px; }'
-    + '.mc-movie-info__title { font-size:24px; font-weight:700; color:#fff; margin-bottom:6px; }'
-    + '.mc-movie-info__year { font-size:16px; color:rgba(255,255,255,0.5); margin-bottom:10px; }'
-    + '.mc-movie-info__rating { font-size:18px; color:#f5c518; font-weight:700; margin-bottom:12px; }'
-    + '.mc-movie-info__desc { font-size:15px; color:rgba(255,255,255,0.65); line-height:1.5; }';
+    + '.mc-dialog-item__check { font-size:20px; color:#3bd574; min-width:28px; text-align:right; display:flex; align-items:center; justify-content:center; }'
+    + '.mc-dialog-item__check.empty { color:rgba(255,255,255,0.15); }';
 
     var style = document.createElement('style');
     style.id = 'my-collections-styles';
@@ -266,7 +287,7 @@
     injectStyles();
 
     Lampa.Manifest.plugins = {
-      type: 'video', version: '1.10.0', name: PLUGIN_NAME,
+      type: 'video', version: '1.11.0', name: PLUGIN_NAME,
       description: 'Закладки, коллекции и таймер просмотра',
       component: 'my_collections',
       onContextMenu: function(){ return { name: PLUGIN_NAME, description: '' }; },
@@ -323,7 +344,8 @@
         var col = collections[key];
         var inCol = isInCollection(key, movie.id);
         items.push({
-          title: col.name + (inCol ? '  ✓' : ''),
+          title: col.name,
+          checkbox: inCol,
           _id: key, _movie: movie, _in: inCol
         });
       }
@@ -605,7 +627,7 @@
 
     scroll.render().on('hover:enter click', '.mc-card[data-mid]', function() {
       var movie = $(this).data('movie');
-      if (movie) showMovieInfo(movie);
+      if (movie) openFullCard(movie);
     });
 
     enableWheelScroll(scroll.render()[0]);
@@ -623,109 +645,6 @@
         render.empty().append(scroll.render());
       }
       Lampa.Controller.toggle('mc_main');
-      try { scroll.update(); } catch(e) {}
-    }, 300);
-  }
-
-  // ========== Movie Info ==========
-
-  function showMovieInfo(movie) {
-    var url = posterUrl(movie);
-    var year = (movie.release_date || '').substring(0, 4);
-    var rating = (movie.vote_average || 0).toFixed(1);
-
-    var cols = getCollections();
-    var inCols = [];
-    var k = Object.keys(cols);
-    for (var i = 0; i < k.length; i++) {
-      if (isInCollection(k[i], movie.id)) inCols.push(cols[k[i]].name);
-    }
-
-    var scroll = new Lampa.Scroll({ mask: true, over: true });
-    scroll.body().addClass('mc-page');
-
-    scroll.append($(
-      '<div class="mc-movie-info">' +
-        '<div class="mc-movie-info__poster" style="background-image:url(' + (url || '') + ')"></div>' +
-        '<div class="mc-movie-info__title">' + (movie.title || '') + '</div>' +
-        (movie.original_title ? '<div class="mc-movie-info__year" style="font-size:14px;color:rgba(255,255,255,0.35);margin-top:-4px;">' + movie.original_title + '</div>' : '') +
-        '<div class="mc-movie-info__year">' + year + '</div>' +
-        (movie.vote_average > 0 ? '<div class="mc-movie-info__rating">⭐ ' + rating + '</div>' : '') +
-        (inCols.length ? '<div class="mc-movie-info__year" style="color:#3bd574;">' + inCols.join(', ') + '</div>' : '') +
-        (movie.overview ? '<div class="mc-movie-info__desc">' + movie.overview + '</div>' : '') +
-      '</div>'
-    ));
-
-    var actions = $('<div style="padding:0 24px 20px;display:flex;flex-wrap:wrap;gap:10px;"></div>');
-    actions.append($('<div class="mc-sort__btn selector" data-action="add" style="background:rgba(59,213,116,0.15);color:#3bd574;">📋 Добавить в коллекцию</div>'));
-    actions.append($('<div class="mc-sort__btn selector" data-action="open" style="background:rgba(255,255,255,0.08);color:#fff;">📄 Открыть карточку</div>'));
-    actions.append($('<div class="mc-sort__btn selector" data-action="remove" style="background:rgba(238,85,85,0.15);color:#e55;">🗑 Удалить</div>'));
-    scroll.append(actions);
-
-    scroll.render().on('hover:enter click', '[data-action="add"]', function() {
-      showAddToCollectionDialog(movie);
-    });
-    scroll.render().on('hover:enter click', '[data-action="open"]', function() {
-      var card = {
-        id: movie.id, title: movie.title || '',
-        original_title: movie.original_title || '',
-        poster_path: movie.poster_path || '',
-        backdrop_path: movie.backdrop_path || '',
-        release_date: movie.release_date || '',
-        vote_average: movie.vote_average || 0,
-        vote_count: movie.vote_count || 0,
-        overview: movie.overview || '',
-        genre_ids: movie.genre_ids || [],
-        source: movie.source || 'tmdb',
-        media_type: movie.media_type || 'movie'
-      };
-      Lampa.Activity.push({ title: card.title, component: 'full', card: card, data: { movie: card } });
-    });
-    scroll.render().on('hover:enter click', '[data-action="remove"]', function() {
-      var found = false;
-      var k2 = Object.keys(cols);
-      for (var i = 0; i < k2.length; i++) {
-        if (isInCollection(k2[i], movie.id)) {
-          removeFromCollection(k2[i], movie.id);
-          found = true;
-        }
-      }
-      if (found) {
-        Lampa.Noty.show('Удалено из всех коллекций');
-        refreshCardButton();
-        Lampa.Activity.backward();
-      }
-    });
-
-    enableWheelScroll(scroll.render()[0]);
-
-    Lampa.Controller.add('mc_info', {
-      toggle: function() {
-        Lampa.Controller.collectionSet(scroll.render(), scroll.render());
-        Lampa.Controller.collectionFocus(false, scroll.render());
-      },
-      up: function() {
-        if (Navigator.canmove('up')) Navigator.move('up');
-      },
-      down: function() { Navigator.move('down'); },
-      right: function() { Navigator.move('right'); },
-      left: function() { Navigator.move('left'); },
-      back: function() { Lampa.Activity.backward(); }
-    });
-
-    Lampa.Activity.push({
-      title: movie.title || 'Фильм',
-      component: 'mc_info',
-      onBack: function() { Lampa.Activity.backward(); }
-    });
-
-    setTimeout(function() {
-      var active = Lampa.Activity.active();
-      if (active && active.activity && active.activity.render) {
-        var render = active.activity.render();
-        render.empty().append(scroll.render());
-      }
-      Lampa.Controller.toggle('mc_info');
       try { scroll.update(); } catch(e) {}
     }, 300);
   }
