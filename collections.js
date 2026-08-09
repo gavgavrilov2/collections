@@ -670,7 +670,6 @@
       var item = document.createElement('div');
       item.className = 'menu__item selector my-collections-menu-item';
       item.innerHTML = '<div class="menu__item-text" style="font-size:18px;font-weight:600;">' + PLUGIN_NAME + '</div>';
-      item.addEventListener('click', function(){ openCollectionsPage(); });
       item.addEventListener('hover:enter', function(){ openCollectionsPage(); });
       menuList.appendChild(item);
     }, 2000);
@@ -762,7 +761,6 @@
       list.appendChild(item);
 
       (function(el, idx) {
-        el.addEventListener('click', function() { focusIdx = idx; updateFocus(); selectItem(idx); });
         el.addEventListener('hover:enter', function() { focusIdx = idx; updateFocus(); selectItem(idx); });
       })(item, i);
     }
@@ -974,6 +972,10 @@
         if (recentlyViewed.length > 0) addSection('\u041D\u0435\u0434\u0430\u0432\u043D\u043E \u043F\u0440\u043E\u0441\u043C\u043E\u0442\u0440\u0435\u043D\u043E', recentlyViewed, 'portrait');
       } else {
         contentEl.append($('<div class="mc-empty">\u041F\u043E\u043A\u0430 \u043F\u0443\u0441\u0442\u043E. \u0414\u043E\u0431\u0430\u0432\u043B\u044F\u0439\u0442\u0435 \u0444\u0438\u043B\u044C\u043C\u044B \u0438\u0437 \u043A\u0430\u0440\u0442\u043E\u0447\u0435\u043A.</div>'));
+      }
+
+      if (filteredMovies.length > 0) {
+        addSection('\u0412\u0441\u0435 \u0444\u0438\u043B\u044C\u043C\u044B \u0432 \u043A\u043E\u043B\u043B\u0435\u043A\u0446\u0438\u0438 (' + filteredMovies.length + ')', filteredMovies, 'portrait');
       }
 
       bindTabEvents(tabsEl);
@@ -1266,7 +1268,7 @@
 
     var btn = $('<div class="full-start__button selector button--collection' + (inAny ? ' button--collection-active' : '') + '" data-mid="' + card.id + '"></div>');
     btn.html('<svg xmlns="http://www.w3.org/2000/svg" width="21" height="32" viewBox="0 0 21 32" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 20l-7-5-7 5V5a1 1 0 0 1 1-1h12a1 1 0 0 1 1 1z"/></svg><span>' + PLUGIN_NAME + (inAny ? ' \u2713' : '') + '</span>');
-    btn.on('hover:enter click', function() { showAddToCollectionDialog(card); });
+    btn.on('hover:enter', function() { showAddToCollectionDialog(card); });
 
     var optionsBtn = container.find('.button--options');
     if (optionsBtn.length) {
