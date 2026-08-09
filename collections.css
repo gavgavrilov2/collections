@@ -24,7 +24,7 @@
   background-size: cover;
   background-position: center top;
   background-repeat: no-repeat;
-  background-color: #131d2c;
+  background-color: #050A12;
   z-index: 1;
   pointer-events: none;
 }
@@ -34,10 +34,10 @@
   top: 0; left: 0; right: 0; bottom: 0;
   background: linear-gradient(
     to bottom,
-    rgba(19, 29, 44, 0.75) 0%,
-    rgba(19, 29, 44, 0.5) 30%,
-    rgba(19, 29, 44, 0.8) 70%,
-    rgba(19, 29, 44, 0.95) 100%
+    rgba(5, 10, 18, 0.75) 0%,
+    rgba(5, 10, 18, 0.5) 30%,
+    rgba(5, 10, 18, 0.8) 70%,
+    rgba(5, 10, 18, 0.95) 100%
   );
 }
 
@@ -49,7 +49,7 @@
   overflow-x: auto;
   align-items: center;
   flex-wrap: nowrap;
-  background: rgba(255,255,255,0.03);
+  background: transparent;
   border-bottom: 1px solid rgba(255,255,255,0.06);
 }
 .mc-tabs::-webkit-scrollbar { display: none; }
