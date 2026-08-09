@@ -821,7 +821,7 @@
 
     var items = [];
     for (var i = 0; i < keys.length; i++) {
-      (function(key) {
+      (function(key, idx) {
         var col = collections[key];
         var inCol = isInCollection(key, movie.id);
         items.push({
@@ -839,11 +839,16 @@
             _collectionsCache = null;
             collections = getCollections();
             refreshCardButton();
-            closeMcPopup();
-            showAddToCollectionDialog(movie);
+            var popupList = document.querySelector('.mc-popup__list');
+            if (popupList && popupList.children[idx]) {
+              var cb = popupList.children[idx].querySelector('.mc-popup__cb');
+              if (cb) cb.classList.toggle('on');
+              var countEl = popupList.children[idx].querySelector('.mc-popup__item-count');
+              if (countEl) countEl.textContent = (getCollections()[key] || {}).movies ? (getCollections()[key].movies || []).length : 0;
+            }
           }
         });
-      })(keys[i]);
+      })(keys[i], i);
     }
 
     items.push({
