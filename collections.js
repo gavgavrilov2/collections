@@ -13,7 +13,7 @@
     compact: 0.85,
     normal: 1.0,
     large: 1.15,
-    xlarge: 1.3
+    xlarge: 1.2
   };
 
   var DEFAULT_COLLECTIONS = {
