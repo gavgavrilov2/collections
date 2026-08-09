@@ -86,9 +86,9 @@
     var s = getTvScaleSetting();
     var w = window.innerWidth || 1920;
     var base;
-    if (w <= 1280) base = 16;
-    else if (w <= 1920) base = 20;
-    else base = 24;
+    if (w <= 1280) base = 20;
+    else if (w <= 1920) base = 28;
+    else base = 36;
     return Math.round(base * s);
   }
 
@@ -920,6 +920,7 @@
     var sections = [];
     var activeSection = -1;
     var currentCtrl = 'mc_tabs';
+    var tabsEl = null;
 
     function renderPage() {
       contentEl.empty();
@@ -942,7 +943,7 @@
       if (activeTab !== 'all') recentlyViewed = recentlyViewed.filter(function(m) { return detectCategory(m) === activeTab; });
 
       /* Tabs */
-      var tabsEl = $('<div class="mc-tabs"></div>');
+      tabsEl = $('<div class="mc-tabs"></div>');
       for (var t = 0; t < TYPE_TABS.length; t++) {
         var tab = TYPE_TABS[t];
         var count = getMoviesByCategory(tab.id).length;
@@ -978,7 +979,7 @@
       bindTabEvents(tabsEl);
       try { scroll.update(); } catch(e) {}
 
-      activateTabs(tabsEl);
+      activateTabs();
     }
 
     function addSection(title, data, type) {
@@ -1091,7 +1092,7 @@
       });
     }
 
-    function activateTabs(tabsEl) {
+    function activateTabs() {
       activeSection = -1;
       currentCtrl = 'mc_tabs';
 
