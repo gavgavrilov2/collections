@@ -927,8 +927,6 @@
     function renderPage() {
       contentEl.empty();
 
-      contentEl.append('<div class="mc-header">Мои коллекции</div>');
-
       var filteredMovies = getMoviesByCategory(activeTab);
       if (activeFilter !== 'all') {
         filteredMovies = filteredMovies.filter(function(m) { return isInCollection(activeFilter, m.id); });

@@ -41,14 +41,6 @@
   );
 }
 
-/* ---- Header ---- */
-.mc-header {
-  font-size: calc(32px * var(--mc-s, 1));
-  font-weight: 700;
-  color: #fff;
-  padding: calc(20px * var(--mc-s, 1)) calc(24px * var(--mc-s, 1)) calc(16px * var(--mc-s, 1));
-}
-
 /* ---- Tabs ---- */
 .mc-tabs {
   display: flex;
