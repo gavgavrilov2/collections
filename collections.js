@@ -760,6 +760,11 @@
         item.appendChild(cb);
       }
       list.appendChild(item);
+
+      (function(el, idx) {
+        el.addEventListener('click', function() { focusIdx = idx; updateFocus(); selectItem(idx); });
+        el.addEventListener('hover:enter', function() { focusIdx = idx; updateFocus(); selectItem(idx); });
+      })(item, i);
     }
 
     box.appendChild(list);
@@ -784,11 +789,6 @@
 
     overlay.addEventListener('click', function(e) {
       if (e.target === overlay) closeMcPopup();
-    });
-
-    $(list).on('click hover:enter', '.mc-popup__item', function() {
-      var idx = parseInt($(this).attr('data-idx'));
-      if (!isNaN(idx)) { focusIdx = idx; updateFocus(); selectItem(idx); }
     });
 
     _prevController = opts.prevController || 'mc_main';
