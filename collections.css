@@ -304,7 +304,97 @@
   text-align: center;
 }
 
-/* ---- Folder card ---- */
+/* ---- Compact card (Продолжить просмотр) ---- */
+.mc-card--compact { width: var(--mc-cw, 190px); }
+.mc-card--compact .mc-card__poster {
+  width: var(--mc-cw, 190px);
+  height: calc(220px * var(--mc-s, 1));
+  border-radius: calc(10px * var(--mc-s, 1));
+  background-size: cover;
+  background-position: center top;
+  background-color: rgba(255,255,255,0.04);
+  position: relative;
+  overflow: hidden;
+}
+.mc-card--compact .mc-card__progress {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: calc(3px * var(--mc-s, 1));
+  background: rgba(255,255,255,0.15);
+}
+.mc-card--compact .mc-card__progress-bar {
+  height: 100%;
+  background: #3bd574;
+  border-radius: 0;
+}
+.mc-card--compact .mc-card__percent {
+  position: absolute;
+  bottom: calc(8px * var(--mc-s, 1));
+  right: calc(8px * var(--mc-s, 1));
+  font-size: calc(12px * var(--mc-s, 1));
+  font-weight: 600;
+  color: #fff;
+  text-shadow: 0 1px 3px rgba(0,0,0,0.7);
+}
+
+/* ---- Folder card (poster background) ---- */
+.mc-card--folder { width: var(--mc-cw, 190px); }
+.mc-card--folder .mc-card__poster {
+  width: var(--mc-cw, 190px);
+  height: calc(220px * var(--mc-s, 1));
+  border-radius: calc(10px * var(--mc-s, 1));
+  background-size: cover;
+  background-position: center top;
+  background-color: #1a2236;
+  position: relative;
+  overflow: hidden;
+}
+.mc-card--folder .mc-card__gradient {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 60%;
+  background: linear-gradient(transparent, rgba(0,0,0,0.85));
+}
+.mc-card--folder .mc-card__menu {
+  position: absolute;
+  top: calc(8px * var(--mc-s, 1));
+  right: calc(8px * var(--mc-s, 1));
+  width: calc(28px * var(--mc-s, 1));
+  height: calc(28px * var(--mc-s, 1));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: rgba(255,255,255,0.7);
+  cursor: pointer;
+  border-radius: 50%;
+  background: rgba(0,0,0,0.3);
+}
+.mc-card--folder .mc-card__folder-info {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: calc(12px * var(--mc-s, 1));
+}
+.mc-card--folder .mc-card__folder-name {
+  font-size: calc(14px * var(--mc-s, 1));
+  font-weight: 500;
+  color: #fff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.mc-card--folder .mc-card__folder-count {
+  font-size: calc(12px * var(--mc-s, 1));
+  color: rgba(255,255,255,0.55);
+  margin-top: 2px;
+}
+
+/* ---- Folder card (old SVG icon style — kept for reference) ---- */
 .mc-folder-card {
   flex-shrink: 0;
   width: var(--mc-cw, 190px);
@@ -459,6 +549,17 @@
 }
 .mc-popup__create:hover, .mc-popup__create.focus { background: rgba(41,153,219,0.15); }
 .mc-popup__create-text { font-size: calc(21px * var(--mc-s, 1)); color: #2999db; font-weight: 400; }
+
+/* ---- Create folder tab ---- */
+.mc-tab[data-create-folder] {
+  border-style: dashed;
+  border-color: rgba(255,255,255,0.12);
+}
+.mc-tab[data-create-folder]:hover,
+.mc-tab[data-create-folder].focus {
+  border-color: rgba(41,153,219,0.4);
+  background: rgba(41,153,219,0.08);
+}
 
 /* ============================================================
    TV overrides — applied when JS adds .mc-root.tv class.

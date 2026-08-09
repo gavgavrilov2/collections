@@ -34,6 +34,9 @@
 
   var MIGRATION_KEY = 'mc_migration_timeline';
   var _collectionsCache = null;
+  var _headBtns = [];
+  var _headDefaultsHidden = [];
+  var _headTitleOrig = '';
 
   /* isTV() удалена — используется Platform.screen('tv') или Platform.tv() */
 
@@ -303,7 +306,7 @@
     var newId = 'custom_' + Date.now();
     cols[newId] = { name: name, icon: icon || '\uD83D\uDCC1', movies: [] };
     saveCollections(cols);
-    addToCollection(newId, movie);
+    if (movie && movie.id) addToCollection(newId, movie);
     Lampa.Noty.show('\u0421\u043E\u0437\u0434\u0430\u043D\u043E: \u00AB' + name + '\u00BB');
     refreshCardButton();
   }
@@ -518,10 +521,17 @@
     var keys = Object.keys(cols);
     for (var i = 0; i < keys.length; i++) {
       if (!cols[keys[i]].isDefault) {
+        var movies = cols[keys[i]].movies || [];
+        var poster = '';
+        for (var j = 0; j < movies.length; j++) {
+          if (movies[j].poster_path) { poster = posterUrl(movies[j]); break; }
+          if (movies[j].backdrop_path) { poster = backdropUrl(movies[j]); break; }
+        }
         result.push({
           id: keys[i],
           name: cols[keys[i]].name,
-          count: (cols[keys[i]].movies || []).length,
+          count: movies.length,
+          poster: poster,
           _isFolder: true
         });
       }
@@ -889,6 +899,34 @@
     showMcPopup({ title: '\u041D\u043E\u0432\u0430\u044F \u043A\u043E\u043B\u043B\u0435\u043A\u0446\u0438\u044F', items: items, prevController: 'content' });
   }
 
+  function showCreateFolderDialog() {
+    var names = [
+      '\u0414\u043E\u043A\u0443\u043C\u0435\u043D\u0442\u0430\u043B\u044C\u043D\u044B\u0435', '\u041A\u043E\u043C\u0435\u0434\u0438\u0438', '\u0423\u0436\u0430\u0441\u044B', '\u0424\u0430\u043D\u0442\u0430\u0441\u0442\u0438\u043A\u0430',
+      '\u041C\u0435\u043B\u043E\u0434\u0440\u0430\u043C\u044B', '\u0411\u043E\u0435\u0432\u0438\u043A\u0438', '\u0414\u0435\u0442\u0435\u043A\u0442\u0438\u0432\u044B', '\u0414\u0440\u0430\u043C\u044B',
+      '\u041C\u044E\u0437\u044B\u043A\u043B\u044B', '\u0418\u0441\u0442\u043E\u0440\u0438\u0447\u0435\u0441\u043A\u0438\u0435', '\u0412\u043E\u0435\u043D\u043D\u044B\u0435', '\u041A\u0440\u0438\u043C\u0438\u043D\u0430\u043B',
+      '\u0417\u0430\u0433\u0430\u0434\u043A\u0438', '\u0421\u0435\u043C\u0435\u0439\u043D\u044B\u0435', '\u0414\u0435\u0442\u0441\u043A\u0438\u0435'
+    ];
+    var items = names.map(function(n) {
+      return {
+        name: n,
+        onSelect: function() {
+          var cols = getCollections();
+          var newId = 'custom_' + Date.now();
+          cols[newId] = { name: n, icon: '\uD83D\uDCC1', movies: [] };
+          saveCollections(cols);
+          Lampa.Noty.show('\u0421\u043E\u0437\u0434\u0430\u043D\u043E: \u00AB' + n + '\u00BB');
+          closeMcPopup();
+          viewingFolderId = newId;
+          renderPage();
+          setTimeout(function() {
+            if (sections.length > 0) activateSection(0);
+          }, 100);
+        }
+      };
+    });
+    showMcPopup({ title: '\u0421\u043E\u0437\u0434\u0430\u0442\u044C \u043F\u0430\u043F\u043A\u0443', items: items, prevController: 'content' });
+  }
+
   // ========== Scroll ==========
 
   function enableWheelScroll(el) {
@@ -903,12 +941,56 @@
     row.scrollBy({ left: dir * getLandscapeW() * 1.1, behavior: 'smooth' });
   }
 
+  // ========== Head Lifecycle ==========
+
+  function customizeHead() {
+    if (typeof Lampa.Head === 'undefined') return;
+
+    var titleEl = document.querySelector('.head__title');
+    _headTitleOrig = titleEl ? titleEl.textContent : '';
+    Lampa.Head.title('');
+
+    var toHide = document.querySelectorAll(
+      '.head__action.open--premium, .head__action.open--feed, .head__action.open--profile, ' +
+      '.head__action.open--broadcast, .head__action.notice--icon, .head__action.full--screen, ' +
+      '.head__logo-icon, .head__menu-icon'
+    );
+    for (var i = 0; i < toHide.length; i++) {
+      if (toHide[i].style.display !== 'none') {
+        toHide[i].style.display = 'none';
+        _headDefaultsHidden.push(toHide[i]);
+      }
+    }
+
+    if (_headBtns.length === 0) {
+      var svgFilter = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>';
+      var svgGear   = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/></svg>';
+
+      _headBtns.push(Lampa.Head.addIcon(svgGear,   function() { showTvScaleDialog(); }));
+      _headBtns.push(Lampa.Head.addIcon(svgFilter, function() { showFilterDialog(); }));
+    }
+  }
+
+  function restoreHead() {
+    if (typeof Lampa.Head === 'undefined') return;
+    for (var i = 0; i < _headBtns.length; i++) {
+      try { _headBtns[i].remove(); } catch(e) {}
+    }
+    _headBtns = [];
+    for (var i = 0; i < _headDefaultsHidden.length; i++) {
+      _headDefaultsHidden[i].style.display = '';
+    }
+    _headDefaultsHidden = [];
+    Lampa.Head.title(_headTitleOrig);
+  }
+
   // ========== Main Page ==========
 
   function removeMcBackground() {
     var old = document.querySelector('.mc-bg');
     if (old) old.remove();
     document.body.classList.remove('mc-active');
+    restoreHead();
   }
 
   function createMcBackground() {
@@ -976,18 +1058,16 @@
         tabsEl.append($('<div class="mc-tab selector' + (activeTab === tab.id ? ' active' : '') + '" data-tab="' + tab.id + '"><span class="mc-tab__icon">' + tab.icon + '</span><span class="mc-tab__label">' + tab.label + '</span><span class="mc-tab__count">' + count + '</span></div>'));
       }
 
-      var filterLabel = '\u0424\u0438\u043B\u044C\u0442\u0440\u044B';
-      if (activeFilter !== 'all') {
-        var cols = getCollections();
-        if (cols[activeFilter]) filterLabel = cols[activeFilter].name;
+      var customCols = getCustomCollections();
+      for (var c = 0; c < customCols.length; c++) {
+        (function(col) {
+          var isActive = (viewingFolderId === col.id);
+          var folderSvg = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="16" height="16"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>';
+          tabsEl.append($('<div class="mc-tab selector' + (isActive ? ' active' : '') + '" data-folder-tab="' + col.id + '"><span class="mc-tab__icon">' + folderSvg + '</span><span class="mc-tab__label">' + col.name + '</span><span class="mc-tab__count">' + col.count + '</span></div>'));
+        })(customCols[c]);
       }
-      tabsEl.append($('<div class="mc-filter-btn selector' + (activeFilter !== 'all' ? ' active' : '') + '" data-filter="toggle"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg><span class="mc-filter-btn__label">' + filterLabel + '</span></div>'));
 
-      if (typeof Lampa !== 'undefined' && Lampa.Platform) {
-        var scaleNames = { compact: '\u041A\u043E\u043C\u043F\u0430\u043A\u0442\u043D\u044B\u0439', normal: '\u041E\u0431\u044B\u0447\u043D\u044B\u0439', large: '\u041A\u0440\u0443\u043F\u043D\u044B\u0439', xlarge: '\u041E\u0447\u0435\u043D\u044C \u043A\u0440\u0443\u043F\u043D\u044B\u0439' };
-        var curScale = localStorage.getItem(TV_SCALE_KEY) || 'large';
-        tabsEl.append($('<div class="mc-filter-btn selector" data-tv-scale="open"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/></svg><span class="mc-filter-btn__label">' + (scaleNames[curScale] || scaleNames.large) + '</span></div>'));
-      }
+      tabsEl.append($('<div class="mc-tab selector" data-create-folder="true"><span class="mc-tab__icon">+</span><span class="mc-tab__label">\u0421\u043E\u0437\u0434\u0430\u0442\u044C \u043F\u0430\u043F\u043A\u0443</span></div>'));
 
       contentEl.append(tabsEl);
 
@@ -995,7 +1075,7 @@
       var hasAny = continueWatching.length > 0 || recentlyViewed.length > 0;
 
       if (hasAny) {
-        if (continueWatching.length > 0) addSection('\u041F\u0440\u043E\u0434\u043E\u043B\u0436\u0438\u0442\u044C \u043F\u0440\u043E\u0441\u043C\u043E\u0442\u0440', continueWatching, 'landscape');
+        if (continueWatching.length > 0) addSection('\u041F\u0440\u043E\u0434\u043E\u043B\u0436\u0438\u0442\u044C \u043F\u0440\u043E\u0441\u043C\u043E\u0442\u0440', continueWatching, 'compact');
         if (recentlyViewed.length > 0) addSection('\u041D\u0435\u0434\u0430\u0432\u043D\u043E \u043F\u0440\u043E\u0441\u043C\u043E\u0442\u0440\u0435\u043D\u043E', recentlyViewed, 'portrait');
       } else {
         contentEl.append($('<div class="mc-empty">\u041F\u043E\u043A\u0430 \u043F\u0443\u0441\u0442\u043E. \u0414\u043E\u0431\u0430\u0432\u043B\u044F\u0439\u0442\u0435 \u0444\u0438\u043B\u044C\u043C\u044B \u0438\u0437 \u043A\u0430\u0440\u0442\u043E\u0447\u0435\u043A.</div>'));
@@ -1036,7 +1116,29 @@
         activate: function() { activateSection(idx); }
       };
 
-      if (type === 'landscape') {
+      if (type === 'compact') {
+        for (var i = 0; i < data.length; i++) {
+          var it = data[i], m = it.movie;
+          var bg = posterUrl(m) || backdropUrl(m);
+
+          var card = $('<div class="mc-card mc-card--compact selector" data-mid="' + m.id + '">'
+            + '<div class="mc-card__poster" style="background-image:url(' + (bg || '') + ')">'
+            + '<div class="mc-card__progress"><div class="mc-card__progress-bar" style="width:' + it.percent + '%"></div></div>'
+            + '<div class="mc-card__percent">' + it.percent + '%</div>'
+            + '</div></div>'
+          ).data('movie', m)[0];
+
+          (function(cardEl, movie, hs, sec) {
+            cardEl.addEventListener('hover:enter', function() { openFullCard(movie); });
+            cardEl.addEventListener('hover:focus', function() {
+              sec.last = cardEl;
+              hs.update(cardEl, true);
+            });
+          })(card, m, hscroll, sectionObj);
+
+          hscroll.append(card);
+        }
+      } else if (type === 'landscape') {
         for (var i = 0; i < data.length; i++) {
           var it = data[i], m = it.movie;
           var bg = backdropUrl(m);
@@ -1063,6 +1165,35 @@
               hs.update(cardEl, true);
             });
           })(card, m, hscroll, sectionObj);
+
+          hscroll.append(card);
+        }
+      } else if (type === 'folders') {
+        for (var i = 0; i < data.length; i++) {
+          var folder = data[i];
+          var folderBg = folder.poster || '';
+          var folderSvg = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="16" height="16"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>';
+
+          var card = $('<div class="mc-card mc-card--folder selector" data-folder="' + folder.id + '">'
+            + '<div class="mc-card__poster" style="background-image:url(' + (folderBg || '') + ')">'
+            + '<div class="mc-card__gradient"></div>'
+            + '<div class="mc-card__menu">' + folderSvg + '</div>'
+            + '<div class="mc-card__folder-info">'
+            + '<div class="mc-card__folder-name">' + folder.name + '</div>'
+            + '<div class="mc-card__folder-count">' + folder.count + ' \u0444\u0438\u043B\u044C\u043C\u043E\u0432</div>'
+            + '</div></div></div>'
+          )[0];
+
+          (function(cardEl, folderData, hs, sec) {
+            cardEl.addEventListener('hover:enter', function() {
+              viewingFolderId = folderData.id;
+              renderPage();
+              setTimeout(function() {
+                if (sections.length > 0) activateSection(0);
+              }, 100);
+            });
+            cardEl.addEventListener('hover:focus', function() { sec.last = cardEl; hs.update(cardEl, true); });
+          })(card, folder, hscroll, sectionObj);
 
           hscroll.append(card);
         }
@@ -1122,18 +1253,16 @@
         tabsEl.append($('<div class="mc-tab selector' + (activeTab === tab.id ? ' active' : '') + '" data-tab="' + tab.id + '"><span class="mc-tab__icon">' + tab.icon + '</span><span class="mc-tab__label">' + tab.label + '</span><span class="mc-tab__count">' + count + '</span></div>'));
       }
 
-      var filterLabel = '\u0424\u0438\u043B\u044C\u0442\u0440\u044B';
-      if (activeFilter !== 'all') {
-        var allCols = getCollections();
-        if (allCols[activeFilter]) filterLabel = allCols[activeFilter].name;
+      var customCols = getCustomCollections();
+      for (var c = 0; c < customCols.length; c++) {
+        (function(col) {
+          var isActive = (viewingFolderId === col.id);
+          var folderSvg = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="16" height="16"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>';
+          tabsEl.append($('<div class="mc-tab selector' + (isActive ? ' active' : '') + '" data-folder-tab="' + col.id + '"><span class="mc-tab__icon">' + folderSvg + '</span><span class="mc-tab__label">' + col.name + '</span><span class="mc-tab__count">' + col.count + '</span></div>'));
+        })(customCols[c]);
       }
-      tabsEl.append($('<div class="mc-filter-btn selector' + (activeFilter !== 'all' ? ' active' : '') + '" data-filter="toggle"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg><span class="mc-filter-btn__label">' + filterLabel + '</span></div>'));
 
-      if (typeof Lampa !== 'undefined' && Lampa.Platform) {
-        var scaleNames = { compact: '\u041A\u043E\u043C\u043F\u0430\u043A\u0442\u043D\u044B\u0439', normal: '\u041E\u0431\u044B\u0447\u043D\u044B\u0439', large: '\u041A\u0440\u0443\u043F\u043D\u044B\u0439', xlarge: '\u041E\u0447\u0435\u043D\u044C \u043A\u0440\u0443\u043F\u043D\u044B\u0439' };
-        var curScale = localStorage.getItem(TV_SCALE_KEY) || 'large';
-        tabsEl.append($('<div class="mc-filter-btn selector" data-tv-scale="open"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/></svg><span class="mc-filter-btn__label">' + (scaleNames[curScale] || scaleNames.large) + '</span></div>'));
-      }
+      tabsEl.append($('<div class="mc-tab selector" data-create-folder="true"><span class="mc-tab__icon">+</span><span class="mc-tab__label">\u0421\u043E\u0437\u0434\u0430\u0442\u044C \u043F\u0430\u043F\u043A\u0443</span></div>'));
 
       contentEl.append(tabsEl);
 
@@ -1275,17 +1404,26 @@
         var tabId = el.getAttribute('data-tab');
         el.addEventListener('hover:enter', function() {
           activeTab = tabId;
+          viewingFolderId = null;
           localStorage.setItem(ACTIVE_TAB_KEY, activeTab);
           renderPage();
         });
       });
 
-      tabsEl.find('[data-filter="toggle"]').each(function() {
-        this.addEventListener('hover:enter', function() { showFilterDialog(); });
+      tabsEl.find('.mc-tab[data-folder-tab]').each(function() {
+        var el = this;
+        var folderId = el.getAttribute('data-folder-tab');
+        el.addEventListener('hover:enter', function() {
+          viewingFolderId = folderId;
+          renderPage();
+          setTimeout(function() {
+            if (sections.length > 0) activateSection(0);
+          }, 100);
+        });
       });
 
-      tabsEl.find('[data-tv-scale="open"]').each(function() {
-        this.addEventListener('hover:enter', function() { showTvScaleDialog(); });
+      tabsEl.find('[data-create-folder]').each(function() {
+        this.addEventListener('hover:enter', function() { showCreateFolderDialog(); });
       });
     }
 
@@ -1465,6 +1603,7 @@
       component: 'mc_main',
       onBack: function() {
         Lampa.Listener.remove('activity', onActivityStart);
+        restoreHead();
         removeMcBackground();
         Lampa.Controller.toggle('menu');
       }
@@ -1476,6 +1615,7 @@
         active.activity.render().empty().append(scroll.render());
       }
       renderPage();
+      customizeHead();
       mcReady = true;
       try { scroll.update(); } catch(e) {}
     }, 300);
