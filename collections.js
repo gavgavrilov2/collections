@@ -1213,6 +1213,25 @@
       showMcPopup({ title: '\u0420\u0430\u0437\u043C\u0435\u0440 \u0438\u043D\u0442\u0435\u0440\u0444\u0435\u0439\u0441\u0430', items: items, focusIdx: startIdx, prevController: currentCtrl });
     }
 
+    renderPage();
+
+    Lampa.Component.add('mc_main', function(component_object) {
+      this.render = function() { return scroll.render(); };
+      this.start = function() {
+        try { scroll.update(); } catch(e) {}
+        if (currentCtrl === 'mc_row' && activeSection >= 0 && sections[activeSection]) {
+          activateSection(activeSection);
+          try { scroll.update(sections[activeSection].el, true); } catch(e) {}
+        } else {
+          activateTabs();
+          if (tabsEl) {
+            var tabsNode = tabsEl[0];
+            if (tabsNode) try { scroll.update(tabsNode, true); } catch(e) {}
+          }
+        }
+      };
+    });
+
     Lampa.Activity.push({
       title: PLUGIN_NAME,
       component: 'mc_main',
@@ -1221,15 +1240,6 @@
         Lampa.Controller.toggle('menu');
       }
     });
-
-    setTimeout(function() {
-      var active = Lampa.Activity.active();
-      if (active && active.activity && active.activity.render) {
-        active.activity.render().empty().append(scroll.render());
-      }
-      renderPage();
-      try { scroll.update(); } catch(e) {}
-    }, 300);
   }
 
   // ========== Card Button ==========
