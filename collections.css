@@ -1,5 +1,5 @@
 /* ============================================================
-   Collections Plugin CSS
+   Collections Plugin CSS — Design V2
    All dynamic sizes are driven by CSS variables set from JS.
    --mc-s   = screen scale (unitless, e.g. 1.0, 1.35)
    --mc-cw  = portrait card width (px)
@@ -44,11 +44,13 @@
 /* ---- Tabs ---- */
 .mc-tabs {
   display: flex;
-  gap: calc(10px * var(--mc-s, 1));
-  padding: calc(20px * var(--mc-s, 1)) calc(24px * var(--mc-s, 1)) calc(10px * var(--mc-s, 1));
+  gap: calc(12px * var(--mc-s, 1));
+  padding: calc(20px * var(--mc-s, 1)) calc(24px * var(--mc-s, 1)) calc(12px * var(--mc-s, 1));
   overflow-x: auto;
   align-items: center;
   flex-wrap: nowrap;
+  background: rgba(255,255,255,0.03);
+  border-bottom: 1px solid rgba(255,255,255,0.06);
 }
 .mc-tabs::-webkit-scrollbar { display: none; }
 
@@ -56,28 +58,40 @@
   flex-shrink: 0;
   display: flex;
   align-items: center;
-  gap: calc(8px * var(--mc-s, 1));
-  padding: calc(10px * var(--mc-s, 1)) calc(20px * var(--mc-s, 1));
-  border-radius: calc(24px * var(--mc-s, 1));
-  background: rgba(255,255,255,0.06);
+  gap: calc(6px * var(--mc-s, 1));
+  padding: calc(10px * var(--mc-s, 1)) calc(18px * var(--mc-s, 1));
+  border-radius: calc(20px * var(--mc-s, 1));
+  background: rgba(255,255,255,0.05);
   border: calc(1.5px * var(--mc-s, 1)) solid transparent;
   cursor: pointer;
   transform: none !important;
   transition: all .2s;
+  min-height: calc(38px * var(--mc-s, 1));
 }
 .mc-tab:hover, .mc-tab.focus {
   background: rgba(255,255,255,0.1);
   border-color: rgba(255,255,255,0.15);
 }
 .mc-tab.active {
-  background: rgba(255,255,255,0.12);
-  border-color: rgba(255,255,255,0.3);
+  background: rgba(41,153,219,0.15);
+  border-color: rgba(41,153,219,0.5);
+  box-shadow: 0 0 12px rgba(41,153,219,0.15);
 }
 
 .mc-tab__icon  { font-size: calc(16px * var(--mc-s, 1)); }
-.mc-tab__label { font-size: calc(14px * var(--mc-s, 1)); color: rgba(255,255,255,0.6); font-weight: 500; }
+.mc-tab__label { font-size: calc(14px * var(--mc-s, 1)); color: rgba(255,255,255,0.55); font-weight: 500; }
 .mc-tab.active .mc-tab__label { color: #fff; }
-.mc-tab__count { font-size: calc(12px * var(--mc-s, 1)); color: rgba(255,255,255,0.3); margin-left: 2px; }
+.mc-tab__count {
+  font-size: calc(11px * var(--mc-s, 1));
+  color: rgba(255,255,255,0.45);
+  margin-left: calc(6px * var(--mc-s, 1));
+  padding: calc(2px * var(--mc-s, 1)) calc(6px * var(--mc-s, 1));
+  background: rgba(255,255,255,0.06);
+  border-radius: calc(6px * var(--mc-s, 1));
+  font-weight: 600;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
 
 /* ---- Filter / Scale buttons ---- */
 .mc-filter-btn {
@@ -85,37 +99,44 @@
   display: flex;
   align-items: center;
   gap: calc(6px * var(--mc-s, 1));
-  padding: calc(10px * var(--mc-s, 1)) calc(18px * var(--mc-s, 1));
-  border-radius: calc(24px * var(--mc-s, 1));
-  background: rgba(255,255,255,0.06);
+  padding: calc(10px * var(--mc-s, 1)) calc(16px * var(--mc-s, 1));
+  border-radius: calc(20px * var(--mc-s, 1));
+  background: rgba(255,255,255,0.05);
   border: calc(1.5px * var(--mc-s, 1)) solid transparent;
   cursor: pointer;
   transform: none !important;
   transition: all .2s;
   margin-left: auto;
+  min-height: calc(38px * var(--mc-s, 1));
 }
 .mc-filter-btn:hover, .mc-filter-btn.focus { background: rgba(255,255,255,0.1); }
-.mc-filter-btn.active { background: rgba(59,213,116,0.12); border-color: rgba(59,213,116,0.4); }
-.mc-filter-btn__label { font-size: calc(14px * var(--mc-s, 1)); color: rgba(255,255,255,0.6); }
-.mc-filter-btn.active .mc-filter-btn__label { color: #3bd574; }
+.mc-filter-btn.active { background: rgba(41,153,219,0.12); border-color: rgba(41,153,219,0.4); }
+.mc-filter-btn__label { font-size: calc(14px * var(--mc-s, 1)); color: rgba(255,255,255,0.55); }
+.mc-filter-btn.active .mc-filter-btn__label { color: #2999db; }
 .mc-filter-btn svg { width: calc(16px * var(--mc-s, 1)); height: calc(16px * var(--mc-s, 1)); }
 
 /* ---- Section ---- */
-.mc-section { margin-top: calc(8px * var(--mc-s, 1)); margin-bottom: calc(24px * var(--mc-s, 1)); }
+.mc-section { margin-top: calc(16px * var(--mc-s, 1)); margin-bottom: calc(32px * var(--mc-s, 1)); }
 .mc-section__head {
   display: flex;
   align-items: center;
-  padding: 0 calc(24px * var(--mc-s, 1)) calc(14px * var(--mc-s, 1));
+  padding: 0 calc(24px * var(--mc-s, 1)) calc(12px * var(--mc-s, 1));
   gap: calc(12px * var(--mc-s, 1));
 }
-.mc-section__title { font-size: calc(22px * var(--mc-s, 1)); font-weight: 700; color: #fff; flex: 1; }
+.mc-section__title {
+  font-size: calc(20px * var(--mc-s, 1));
+  font-weight: 600;
+  color: rgba(255,255,255,0.95);
+  flex: 1;
+  letter-spacing: -0.01em;
+}
 .mc-section__arrows { display: flex; gap: calc(8px * var(--mc-s, 1)); }
 .mc-section__arrow {
-  width: calc(36px * var(--mc-s, 1));
-  height: calc(36px * var(--mc-s, 1));
+  width: calc(32px * var(--mc-s, 1));
+  height: calc(32px * var(--mc-s, 1));
   border-radius: 50%;
-  background: rgba(255,255,255,0.08);
-  border: calc(1px * var(--mc-s, 1)) solid rgba(255,255,255,0.1);
+  background: rgba(255,255,255,0.06);
+  border: calc(1px * var(--mc-s, 1)) solid rgba(255,255,255,0.08);
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -134,7 +155,7 @@
 /* ---- Row (horizontal scroll / wrap) ---- */
 .mc-row-scroll {
   display: flex;
-  gap: var(--mc-gap, 14px);
+  gap: var(--mc-gap, 22px);
   padding: 0 calc(24px * var(--mc-s, 1));
 }
 .mc-row-scroll::-webkit-scrollbar { display: none; }
@@ -142,7 +163,7 @@
 .mc-row-wrap {
   display: flex;
   flex-wrap: nowrap;
-  gap: var(--mc-gap, 14px);
+  gap: var(--mc-gap, 22px);
   padding: 0 calc(24px * var(--mc-s, 1));
   justify-content: flex-start;
 }
@@ -152,11 +173,11 @@
   flex-shrink: 0;
   cursor: pointer;
   box-shadow: none;
-  transition: box-shadow .2s;
+  transition: box-shadow .25s ease;
   transform: none !important;
 }
 .mc-card:hover, .mc-card.focus {
-  box-shadow: 0 0 0 3px rgba(255,255,255,0.9);
+  box-shadow: 0 0 0 2px rgba(255,255,255,0.85), 0 0 16px rgba(255,255,255,0.08);
   transform: none !important;
 }
 
@@ -166,7 +187,7 @@
   border-radius: calc(12px * var(--mc-s, 1));
   overflow: hidden;
   position: relative;
-  background: #1a1a2e;
+  background: #1a2236;
 }
 .mc-card--landscape .mc-card__backdrop {
   width: 100%;
@@ -223,7 +244,7 @@
 .mc-card--landscape .mc-card__meta { font-size: calc(11px * var(--mc-s, 1)); color: rgba(255,255,255,0.35); margin-top: 4px; }
 .mc-card--landscape .mc-card__progress {
   height: calc(3px * var(--mc-s, 1));
-  background: rgba(255,255,255,0.1);
+  background: rgba(255,255,255,0.08);
   border-radius: 2px;
   margin-top: calc(8px * var(--mc-s, 1));
   overflow: hidden;
@@ -239,7 +260,7 @@
   border-radius: calc(10px * var(--mc-s, 1));
   background-size: cover;
   background-position: center top;
-  background-color: rgba(255,255,255,0.06);
+  background-color: rgba(255,255,255,0.04);
   position: relative;
   overflow: hidden;
 }
@@ -247,11 +268,11 @@
   position: absolute;
   top: calc(8px * var(--mc-s, 1));
   right: calc(8px * var(--mc-s, 1));
-  background: rgba(0,0,0,0.75);
+  background: rgba(0,0,0,0.8);
   color: #f5c518;
   font-size: calc(12px * var(--mc-s, 1));
   font-weight: 700;
-  padding: calc(3px * var(--mc-s, 1)) calc(7px * var(--mc-s, 1));
+  padding: calc(4px * var(--mc-s, 1)) calc(8px * var(--mc-s, 1));
   border-radius: calc(6px * var(--mc-s, 1));
 }
 .mc-card--portrait .mc-card__info { padding: calc(8px * var(--mc-s, 1)) 2px 0; }
@@ -282,8 +303,8 @@
 
 /* ---- Empty state ---- */
 .mc-empty {
-  padding: calc(40px * var(--mc-s, 1)) calc(24px * var(--mc-s, 1));
-  color: rgba(255,255,255,0.25);
+  padding: calc(48px * var(--mc-s, 1)) calc(24px * var(--mc-s, 1));
+  color: rgba(255,255,255,0.3);
   font-size: calc(16px * var(--mc-s, 1));
   text-align: center;
 }
@@ -300,7 +321,7 @@
   height: 100%;
 }
 .mc-popup__box {
-  background: #262829;
+  background: #1a2236;
   width: 35%;
   max-width: 500px;
   display: flex;
@@ -324,14 +345,16 @@
 .mc-popup__item {
   display: flex;
   align-items: center;
-  padding: calc(24px * var(--mc-s, 1)) calc(32px * var(--mc-s, 1));
+  padding: calc(22px * var(--mc-s, 1)) calc(28px * var(--mc-s, 1));
   position: relative;
   cursor: pointer;
   transition: background .1s;
   gap: calc(12px * var(--mc-s, 1));
   transform: none !important;
+  border-left: 3px solid transparent;
 }
-.mc-popup__item:hover, .mc-popup__item.focus { background: #353535; }
+.mc-popup__item:hover { background: rgba(255,255,255,0.06); }
+.mc-popup__item.focus { background: rgba(41,153,219,0.1); border-left-color: #2999db; }
 .mc-popup__item-name {
   flex: 1;
   font-size: calc(21px * var(--mc-s, 1));
@@ -351,14 +374,14 @@
 .mc-popup__cb {
   width: calc(22px * var(--mc-s, 1));
   height: calc(22px * var(--mc-s, 1));
-  border: calc(3px * var(--mc-s, 1)) solid rgba(255,255,255,0.2);
+  border: calc(2.5px * var(--mc-s, 1)) solid rgba(255,255,255,0.2);
   border-radius: calc(5px * var(--mc-s, 1));
   flex-shrink: 0;
   position: relative;
   transition: all .15s;
   box-sizing: border-box;
 }
-.mc-popup__cb.on { border-color: #fff; }
+.mc-popup__cb.on { border-color: #2999db; }
 .mc-popup__cb.on::after {
   content: "";
   display: block;
@@ -382,44 +405,44 @@
   padding: calc(24px * var(--mc-s, 1));
   margin: calc(4px * var(--mc-s, 1)) calc(10px * var(--mc-s, 1)) calc(10px * var(--mc-s, 1));
   border-radius: calc(10px * var(--mc-s, 1));
-  background: rgba(59,213,116,0.1);
-  border: calc(1px * var(--mc-s, 1)) solid rgba(59,213,116,0.25);
+  background: rgba(41,153,219,0.1);
+  border: calc(1px * var(--mc-s, 1)) solid rgba(41,153,219,0.25);
   cursor: pointer;
   transition: background .1s;
 }
-.mc-popup__create:hover, .mc-popup__create.focus { background: #353535; }
-.mc-popup__create-text { font-size: calc(21px * var(--mc-s, 1)); color: #3bd574; font-weight: 400; }
+.mc-popup__create:hover, .mc-popup__create.focus { background: rgba(41,153,219,0.15); }
+.mc-popup__create-text { font-size: calc(21px * var(--mc-s, 1)); color: #2999db; font-weight: 400; }
 
 /* ============================================================
    TV overrides — applied when JS adds .mc-root.tv class.
    Uses larger base values with the same --mc-s multiplier.
    ============================================================ */
 .mc-root.tv .mc-tabs {
-  padding: calc(24px * var(--mc-s, 1)) calc(32px * var(--mc-s, 1)) calc(20px * var(--mc-s, 1));
-  gap: calc(14px * var(--mc-s, 1));
+  padding: calc(28px * var(--mc-s, 1)) calc(36px * var(--mc-s, 1)) calc(16px * var(--mc-s, 1));
+  gap: calc(16px * var(--mc-s, 1));
 }
 .mc-root.tv .mc-tab {
-  padding: calc(14px * var(--mc-s, 1)) calc(28px * var(--mc-s, 1));
-  border-radius: calc(28px * var(--mc-s, 1));
+  padding: calc(14px * var(--mc-s, 1)) calc(24px * var(--mc-s, 1));
+  border-radius: calc(24px * var(--mc-s, 1));
 }
 .mc-root.tv .mc-tab__icon  { font-size: calc(20px * var(--mc-s, 1)); }
-.mc-root.tv .mc-tab__label { font-size: calc(18px * var(--mc-s, 1)); }
-.mc-root.tv .mc-tab__count { font-size: calc(14px * var(--mc-s, 1)); }
+.mc-root.tv .mc-tab__label { font-size: calc(17px * var(--mc-s, 1)); }
+.mc-root.tv .mc-tab__count { font-size: calc(13px * var(--mc-s, 1)); }
 
 .mc-root.tv .mc-filter-btn {
-  padding: calc(14px * var(--mc-s, 1)) calc(24px * var(--mc-s, 1));
-  border-radius: calc(28px * var(--mc-s, 1));
+  padding: calc(14px * var(--mc-s, 1)) calc(22px * var(--mc-s, 1));
+  border-radius: calc(24px * var(--mc-s, 1));
 }
-.mc-root.tv .mc-filter-btn__label { font-size: calc(18px * var(--mc-s, 1)); }
+.mc-root.tv .mc-filter-btn__label { font-size: calc(17px * var(--mc-s, 1)); }
 .mc-root.tv .mc-filter-btn svg { width: calc(20px * var(--mc-s, 1)); height: calc(20px * var(--mc-s, 1)); }
 
-.mc-root.tv .mc-section { margin-top: calc(10px * var(--mc-s, 1)); margin-bottom: calc(28px * var(--mc-s, 1)); }
-.mc-root.tv .mc-section__head { padding: 0 calc(32px * var(--mc-s, 1)) calc(18px * var(--mc-s, 1)); }
+.mc-root.tv .mc-section { margin-top: calc(20px * var(--mc-s, 1)); margin-bottom: calc(40px * var(--mc-s, 1)); }
+.mc-root.tv .mc-section__head { padding: 0 calc(36px * var(--mc-s, 1)) calc(16px * var(--mc-s, 1)); }
 .mc-root.tv .mc-section__title { font-size: calc(28px * var(--mc-s, 1)); }
 .mc-root.tv .mc-section__arrows { display: none; }
 
-.mc-root.tv .mc-row-scroll { padding: 0 calc(32px * var(--mc-s, 1)); }
-.mc-root.tv .mc-row-wrap   { padding: 0 calc(32px * var(--mc-s, 1)); }
+.mc-root.tv .mc-row-scroll { padding: 0 calc(36px * var(--mc-s, 1)); }
+.mc-root.tv .mc-row-wrap   { padding: 0 calc(36px * var(--mc-s, 1)); }
 
 .mc-root.tv .mc-card--portrait .mc-card__title    { font-size: calc(16px * var(--mc-s, 1)); }
 .mc-root.tv .mc-card--portrait .mc-card__subtitle  { font-size: calc(13px * var(--mc-s, 1)); }
@@ -434,14 +457,14 @@
 .mc-root.tv .mc-popup__head  { padding: calc(40px * var(--mc-s, 1)); padding-bottom: 0; }
 .mc-root.tv .mc-popup__title { font-size: calc(40px * var(--mc-s, 1)); }
 .mc-root.tv .mc-popup__item {
-  padding: calc(28px * var(--mc-s, 1)) calc(36px * var(--mc-s, 1));
-  gap: calc(16px * var(--mc-s, 1));
+  padding: calc(26px * var(--mc-s, 1)) calc(34px * var(--mc-s, 1));
+  gap: calc(14px * var(--mc-s, 1));
 }
 .mc-root.tv .mc-popup__item-name  { font-size: calc(24px * var(--mc-s, 1)); }
 .mc-root.tv .mc-popup__item-count { font-size: calc(20px * var(--mc-s, 1)); }
 .mc-root.tv .mc-popup__cb {
-  width: calc(28px * var(--mc-s, 1));
-  height: calc(28px * var(--mc-s, 1));
+  width: calc(26px * var(--mc-s, 1));
+  height: calc(26px * var(--mc-s, 1));
   border-width: calc(3px * var(--mc-s, 1));
 }
 .mc-root.tv .mc-popup__cb.on::after {
@@ -459,8 +482,8 @@
 .mc-root.tv .mc-popup__create-text { font-size: calc(24px * var(--mc-s, 1)); }
 
 /* ---- TV focus outlines ---- */
-.mc-root.tv .mc-card.focus           { box-shadow: inset 0 0 0 3px rgba(255,255,255,0.9); }
-.mc-root.tv .mc-tab.focus            { background: rgba(255,255,255,0.25); border-color: rgba(255,255,255,0.35); }
-.mc-root.tv .mc-filter-btn.focus     { background: rgba(59,213,116,0.15); border-color: rgba(59,213,116,0.5); }
-.mc-root.tv .mc-popup__item.focus    { background: rgba(255,255,255,0.12); }
+.mc-root.tv .mc-card.focus           { box-shadow: inset 0 0 0 2.5px rgba(255,255,255,0.9), 0 0 20px rgba(41,153,219,0.12); }
+.mc-root.tv .mc-tab.focus            { background: rgba(255,255,255,0.15); border-color: rgba(255,255,255,0.3); }
+.mc-root.tv .mc-filter-btn.focus     { background: rgba(255,255,255,0.15); border-color: rgba(255,255,255,0.3); }
+.mc-root.tv .mc-popup__item.focus    { background: rgba(41,153,219,0.1); border-left-color: #2999db; }
 .mc-root.tv .mc-section__arrow.focus { background: rgba(255,255,255,0.25); }
