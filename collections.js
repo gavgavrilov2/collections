@@ -791,7 +791,7 @@
       if (!isNaN(idx)) { focusIdx = idx; updateFocus(); selectItem(idx); }
     });
 
-    _prevController = 'mc_main';
+    _prevController = opts.prevController || 'mc_main';
     _popupController = true;
 
     Lampa.Controller.add('mc_popup', {
@@ -917,8 +917,14 @@
 
     createMcBackground();
 
+    var sections = [];
+    var activeSection = -1;
+    var currentCtrl = 'mc_tabs';
+
     function renderPage() {
       contentEl.empty();
+      sections = [];
+      activeSection = -1;
 
       var filteredMovies = getMoviesByCategory(activeTab);
       if (activeFilter !== 'all') {
@@ -962,101 +968,203 @@
       var hasAny = continueWatching.length > 0 || recentlyAdded.length > 0 || recentlyViewed.length > 0;
 
       if (hasAny) {
-        if (continueWatching.length > 0) renderLandscapeSection('\u041F\u0440\u043E\u0434\u043E\u043B\u0436\u0438\u0442\u044C \u043F\u0440\u043E\u0441\u043C\u043E\u0442\u0440', continueWatching);
-        if (recentlyAdded.length > 0) renderPortraitSection('\u041D\u0435\u0434\u0430\u0432\u043D\u043E \u0434\u043E\u0431\u0430\u0432\u043B\u0435\u043D\u043E', recentlyAdded);
-        if (recentlyViewed.length > 0) renderPortraitSection('\u041D\u0435\u0434\u0430\u0432\u043D\u043E \u043F\u0440\u043E\u0441\u043C\u043E\u0442\u0440\u0435\u043D\u043E', recentlyViewed);
+        if (continueWatching.length > 0) addSection('\u041F\u0440\u043E\u0434\u043E\u043B\u0436\u0438\u0442\u044C \u043F\u0440\u043E\u0441\u043C\u043E\u0442\u0440', continueWatching, 'landscape');
+        if (recentlyAdded.length > 0) addSection('\u041D\u0435\u0434\u0430\u0432\u043D\u043E \u0434\u043E\u0431\u0430\u0432\u043B\u0435\u043D\u043E', recentlyAdded, 'portrait');
+        if (recentlyViewed.length > 0) addSection('\u041D\u0435\u0434\u0430\u0432\u043D\u043E \u043F\u0440\u043E\u0441\u043C\u043E\u0442\u0440\u0435\u043D\u043E', recentlyViewed, 'portrait');
       } else {
         contentEl.append($('<div class="mc-empty">\u041F\u043E\u043A\u0430 \u043F\u0443\u0441\u0442\u043E. \u0414\u043E\u0431\u0430\u0432\u043B\u044F\u0439\u0442\u0435 \u0444\u0438\u043B\u044C\u043C\u044B \u0438\u0437 \u043A\u0430\u0440\u0442\u043E\u0447\u0435\u043A.</div>'));
       }
 
-      bindEvents();
+      bindTabEvents(tabsEl);
       try { scroll.update(); } catch(e) {}
 
-      Lampa.Controller.collectionSet(scroll.render(), scroll.render());
+      activateTabs(tabsEl);
     }
 
-    function renderLandscapeSection(title, items) {
-      var section = $('<div class="mc-section"></div>');
-      section.append($('<div class="mc-section__head"><div class="mc-section__title">' + title + '</div><div class="mc-section__arrows"><div class="mc-section__arrow selector" data-dir="-1"><svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg></div><div class="mc-section__arrow selector" data-dir="1"><svg viewBox="0 0 24 24"><polyline points="9 6 15 12 9 18"/></svg></div></div></div>'));
+    function addSection(title, data, type) {
+      var sectionEl = $('<div class="mc-section"></div>');
+      sectionEl.append($('<div class="mc-section__head"><div class="mc-section__title">' + title + '</div><div class="mc-section__arrows"><div class="mc-section__arrow" data-dir="-1"><svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg></div><div class="mc-section__arrow" data-dir="1"><svg viewBox="0 0 24 24"><polyline points="9 6 15 12 9 18"/></svg></div></div></div>'));
 
-      var row = $('<div class="mc-row-scroll"></div>');
-      for (var i = 0; i < items.length; i++) {
-        var it = items[i], m = it.movie;
-        var bg = backdropUrl(m);
-        var meta = it.progress.season ? 'S' + it.progress.season + ' \u00B7 E' + it.progress.episode : (it.progress.episode ? '\u042D\u043F. ' + it.progress.episode : '');
+      var hscroll = new Lampa.Scroll({ mask: true, horizontal: true });
+      hscroll.body().addClass('mc-row-scroll');
 
-        row.append($('<div class="mc-card mc-card--landscape selector" data-mid="' + m.id + '">'
-          + '<div class="mc-card__backdrop" style="background-image:url(' + (bg || '') + ')">'
-          + '<div class="mc-card__gradient"></div>'
-          + '<div class="mc-card__play"><svg viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"/></svg></div>'
-          + '</div>'
-          + '<div class="mc-card__info">'
-          + '<div class="mc-card__title">' + (m.title || m.name || '') + '</div>'
-          + '<div class="mc-card__subtitle">' + (m.original_title || m.original_name || '') + '</div>'
-          + (meta ? '<div class="mc-card__meta">' + meta + '</div>' : '')
-          + '<div class="mc-card__progress"><div class="mc-card__progress-bar" style="width:' + it.percent + '%"></div></div>'
-          + '<div class="mc-card__left">' + it.left + ' \u043C\u0438\u043D \u043E\u0441\u0442\u0430\u043B\u043E\u0441\u044C</div>'
-          + '</div></div>'
-        ).data('movie', m));
+      var idx = sections.length;
+
+      var sectionObj = {
+        el: sectionEl[0],
+        hscroll: hscroll,
+        last: null,
+        activate: function() { activateSection(idx); }
+      };
+
+      if (type === 'landscape') {
+        for (var i = 0; i < data.length; i++) {
+          var it = data[i], m = it.movie;
+          var bg = backdropUrl(m);
+          var meta = it.progress.season ? 'S' + it.progress.season + ' \u00B7 E' + it.progress.episode : (it.progress.episode ? '\u042D\u043F. ' + it.progress.episode : '');
+
+          var card = $('<div class="mc-card mc-card--landscape selector" data-mid="' + m.id + '">'
+            + '<div class="mc-card__backdrop" style="background-image:url(' + (bg || '') + ')">'
+            + '<div class="mc-card__gradient"></div>'
+            + '<div class="mc-card__play"><svg viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"/></svg></div>'
+            + '</div>'
+            + '<div class="mc-card__info">'
+            + '<div class="mc-card__title">' + (m.title || m.name || '') + '</div>'
+            + '<div class="mc-card__subtitle">' + (m.original_title || m.original_name || '') + '</div>'
+            + (meta ? '<div class="mc-card__meta">' + meta + '</div>' : '')
+            + '<div class="mc-card__progress"><div class="mc-card__progress-bar" style="width:' + it.percent + '%"></div></div>'
+            + '<div class="mc-card__left">' + it.left + ' \u043C\u0438\u043D \u043E\u0441\u0442\u0430\u043B\u043E\u0441\u044C</div>'
+            + '</div></div>'
+          ).data('movie', m)[0];
+
+          (function(cardEl, movie, hs, sec) {
+            cardEl.addEventListener('hover:enter', function() { openFullCard(movie); });
+            cardEl.addEventListener('hover:focus', function() {
+              sec.last = cardEl;
+              hs.update(cardEl, true);
+            });
+          })(card, m, hscroll, sectionObj);
+
+          hscroll.append(card);
+        }
+      } else {
+        for (var i = 0; i < data.length; i++) {
+          var m = data[i];
+          var url = posterUrl(m);
+          var year = getYear(m);
+          var rating = (m.vote_average || 0).toFixed(1);
+
+          var card = $('<div class="mc-card mc-card--portrait selector" data-mid="' + m.id + '">'
+            + '<div class="mc-card__poster" style="background-image:url(' + (url || '') + ')">'
+            + (m.vote_average > 0 ? '<div class="mc-card__badge">' + rating + '</div>' : '')
+            + '</div>'
+            + '<div class="mc-card__info">'
+            + '<div class="mc-card__title">' + (m.title || m.name || '') + '</div>'
+            + '<div class="mc-card__subtitle">' + (m.original_title || m.original_name || '') + '</div>'
+            + (year ? '<div class="mc-card__year">' + year + '</div>' : '')
+            + '</div></div>'
+          ).data('movie', m)[0];
+
+          (function(cardEl, movie, hs, sec) {
+            cardEl.addEventListener('hover:enter', function() { openFullCard(movie); });
+            cardEl.addEventListener('hover:focus', function() {
+              sec.last = cardEl;
+              hs.update(cardEl, true);
+            });
+          })(card, m, hscroll, sectionObj);
+
+          hscroll.append(card);
+        }
       }
-      enableWheelScroll(row[0]);
-      section.append(row);
-      contentEl.append(section);
+
+      sectionEl.append(hscroll.render());
+      contentEl.append(sectionEl);
+
+      sectionEl.find('.mc-section__arrow').each(function() {
+        var el = this;
+        el.addEventListener('click', function() {
+          var dir = parseInt(el.getAttribute('data-dir')) || 0;
+          hscroll.wheel(dir * getLandscapeW() * 1.1);
+        });
+      });
+
+      sections.push(sectionObj);
     }
 
-    function renderPortraitSection(title, movies) {
-      var section = $('<div class="mc-section"></div>');
-      section.append($('<div class="mc-section__head"><div class="mc-section__title">' + title + '</div></div>'));
+    function bindTabEvents(tabsEl) {
+      tabsEl.find('.mc-tab[data-tab]').each(function() {
+        var el = this;
+        var tabId = el.getAttribute('data-tab');
+        el.addEventListener('hover:enter', function() {
+          activeTab = tabId;
+          localStorage.setItem(ACTIVE_TAB_KEY, activeTab);
+          renderPage();
+        });
+      });
 
-      var row = $('<div class="mc-row-wrap"></div>');
-      for (var i = 0; i < movies.length; i++) {
-        var m = movies[i];
-        var url = posterUrl(m);
-        var year = getYear(m);
-        var rating = (m.vote_average || 0).toFixed(1);
+      tabsEl.find('[data-filter="toggle"]').each(function() {
+        this.addEventListener('hover:enter', function() { showFilterDialog(); });
+      });
 
-        row.append($('<div class="mc-card mc-card--portrait selector" data-mid="' + m.id + '">'
-          + '<div class="mc-card__poster" style="background-image:url(' + (url || '') + ')">'
-          + (m.vote_average > 0 ? '<div class="mc-card__badge">' + rating + '</div>' : '')
-          + '</div>'
-          + '<div class="mc-card__info">'
-          + '<div class="mc-card__title">' + (m.title || m.name || '') + '</div>'
-          + '<div class="mc-card__subtitle">' + (m.original_title || m.original_name || '') + '</div>'
-          + (year ? '<div class="mc-card__year">' + year + '</div>' : '')
-          + '</div></div>'
-        ).data('movie', m));
-      }
-      section.append(row);
-      contentEl.append(section);
+      tabsEl.find('[data-tv-scale="open"]').each(function() {
+        this.addEventListener('hover:enter', function() { showTvScaleDialog(); });
+      });
     }
 
-    function bindEvents() {
-      scroll.render().off('hover:enter click');
+    function activateTabs(tabsEl) {
+      activeSection = -1;
+      currentCtrl = 'mc_tabs';
 
-      scroll.render().on('hover:enter click', '.mc-tab[data-tab]', function() {
-        activeTab = $(this).attr('data-tab') || 'all';
-        localStorage.setItem(ACTIVE_TAB_KEY, activeTab);
-        renderPage();
+      Lampa.Controller.add('mc_tabs', {
+        toggle: function() {
+          Lampa.Controller.collectionSet(tabsEl);
+          var activeTabEl = tabsEl[0].querySelector('.mc-tab.active');
+          Lampa.Controller.collectionFocus(activeTabEl || false, tabsEl);
+        },
+        right: function() { if (Navigator.canmove('right')) Navigator.move('right'); },
+        left: function() {
+          if (Navigator.canmove('left')) Navigator.move('left');
+          else Lampa.Controller.toggle('menu');
+        },
+        down: function() {
+          if (sections.length > 0) {
+            activeSection = 0;
+            sections[0].activate();
+            try { scroll.update(sections[0].el, true); } catch(e) {}
+          }
+        },
+        up: function() {
+          Lampa.Controller.toggle('head');
+        },
+        back: function() { Lampa.Activity.backward(); }
       });
 
-      scroll.render().on('hover:enter click', '[data-filter="toggle"]', function() {
-        showFilterDialog();
+      Lampa.Controller.toggle('mc_tabs');
+    }
+
+    function activateSection(idx) {
+      if (idx < 0 || idx >= sections.length) return;
+      activeSection = idx;
+      currentCtrl = 'mc_row';
+
+      var section = sections[idx];
+
+      Lampa.Controller.add('mc_row', {
+        toggle: function() {
+          Lampa.Controller.collectionSet(section.hscroll.render(true));
+          Lampa.Controller.collectionFocus(section.last || false, section.hscroll.render(true));
+        },
+        right: function() { if (Navigator.canmove('right')) Navigator.move('right'); },
+        left: function() {
+          if (Navigator.canmove('left')) Navigator.move('left');
+          else {
+            activateTabs();
+            var tabsNode = contentEl[0].querySelector('.mc-tabs');
+            if (tabsNode) try { scroll.update(tabsNode, true); } catch(e) {}
+          }
+        },
+        down: function() {
+          if (activeSection < sections.length - 1) {
+            activeSection++;
+            sections[activeSection].activate();
+            try { scroll.update(sections[activeSection].el, true); } catch(e) {}
+          }
+        },
+        up: function() {
+          if (activeSection > 0) {
+            activeSection--;
+            sections[activeSection].activate();
+            try { scroll.update(sections[activeSection].el, true); } catch(e) {}
+          } else {
+            activateTabs();
+            var tabsNode = contentEl[0].querySelector('.mc-tabs');
+            if (tabsNode) try { scroll.update(tabsNode, true); } catch(e) {}
+          }
+        },
+        back: function() { Lampa.Activity.backward(); }
       });
 
-      scroll.render().on('hover:enter click', '[data-tv-scale="open"]', function() {
-        showTvScaleDialog();
-      });
-
-      scroll.render().on('hover:enter click', '.mc-section__arrow', function() {
-        var dir = parseInt($(this).attr('data-dir')) || 0;
-        var row = $(this).closest('.mc-section').find('.mc-row-scroll')[0];
-        scrollRow(row, dir);
-      });
-
-      scroll.render().on('hover:enter click', '.mc-card[data-mid]', function() {
-        var movie = $(this).data('movie');
-        if (movie) openFullCard(movie);
-      });
+      Lampa.Controller.toggle('mc_row');
     }
 
     function showFilterDialog() {
@@ -1077,7 +1185,7 @@
         if (f === 0 && activeFilter === 'all') { startIdx = 0; break; }
         if (f > 0 && k[f-1] === activeFilter) { startIdx = f; break; }
       }
-      showMcPopup({ title: '\u0424\u0438\u043B\u044C\u0442\u0440', items: filterItems, focusIdx: startIdx });
+      showMcPopup({ title: '\u0424\u0438\u043B\u044C\u0442\u0440', items: filterItems, focusIdx: startIdx, prevController: currentCtrl });
     }
 
     function showTvScaleDialog() {
@@ -1101,18 +1209,8 @@
           if (k === cur) startIdx = i;
         })(keys[i]);
       }
-      showMcPopup({ title: '\u0420\u0430\u0437\u043C\u0435\u0440 \u0438\u043D\u0442\u0435\u0440\u0444\u0435\u0439\u0441\u0430', items: items, focusIdx: startIdx });
+      showMcPopup({ title: '\u0420\u0430\u0437\u043C\u0435\u0440 \u0438\u043D\u0442\u0435\u0440\u0444\u0435\u0439\u0441\u0430', items: items, focusIdx: startIdx, prevController: currentCtrl });
     }
-
-    /* Controller */
-    Lampa.Controller.add('mc_main', {
-      toggle: function() { Lampa.Controller.collectionSet(scroll.render(), scroll.render()); Lampa.Controller.collectionFocus(false, scroll.render()); },
-      up: function() { if (Navigator.canmove('up')) Navigator.move('up'); else Lampa.Controller.toggle('head'); },
-      down: function() { Navigator.move('down'); },
-      right: function() { Navigator.move('right'); },
-      left: function() { if (Navigator.canmove('left')) Navigator.move('left'); else Lampa.Controller.toggle('menu'); },
-      back: function() { Lampa.Activity.backward(); }
-    });
 
     Lampa.Activity.push({
       title: PLUGIN_NAME,
@@ -1129,7 +1227,6 @@
         active.activity.render().empty().append(scroll.render());
       }
       renderPage();
-      Lampa.Controller.toggle('mc_main');
       try { scroll.update(); } catch(e) {}
     }, 300);
   }

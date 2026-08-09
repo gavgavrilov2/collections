@@ -134,27 +134,25 @@
   display: flex;
   gap: var(--mc-gap, 14px);
   padding: 0 calc(24px * var(--mc-s, 1));
-  overflow-x: auto;
-  overflow-y: hidden;
-  scroll-behavior: smooth;
 }
 .mc-row-scroll::-webkit-scrollbar { display: none; }
 
 .mc-row-wrap {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   gap: var(--mc-gap, 14px);
   padding: 0 calc(24px * var(--mc-s, 1));
-  justify-content: center;
+  justify-content: flex-start;
 }
 
 /* ---- Card (base) ---- */
 .mc-card {
   flex-shrink: 0;
   cursor: pointer;
-  transition: transform .2s;
+  box-shadow: none;
+  transition: box-shadow .2s;
 }
-.mc-card:hover, .mc-card.focus { transform: scale(1.04); }
+.mc-card:hover, .mc-card.focus { box-shadow: 0 0 0 2px #fff; }
 
 /* ---- Landscape card ---- */
 .mc-card--landscape {
@@ -411,14 +409,7 @@
 .mc-root.tv .mc-section { margin-bottom: calc(36px * var(--mc-s, 1)); }
 .mc-root.tv .mc-section__head { padding: 0 calc(32px * var(--mc-s, 1)) calc(18px * var(--mc-s, 1)); }
 .mc-root.tv .mc-section__title { font-size: calc(28px * var(--mc-s, 1)); }
-.mc-root.tv .mc-section__arrow {
-  width: calc(44px * var(--mc-s, 1));
-  height: calc(44px * var(--mc-s, 1));
-}
-.mc-root.tv .mc-section__arrow svg {
-  width: calc(20px * var(--mc-s, 1));
-  height: calc(20px * var(--mc-s, 1));
-}
+.mc-root.tv .mc-section__arrows { display: none; }
 
 .mc-root.tv .mc-row-scroll { padding: 0 calc(32px * var(--mc-s, 1)); }
 .mc-root.tv .mc-row-wrap   { padding: 0 calc(32px * var(--mc-s, 1)); }
