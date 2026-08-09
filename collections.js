@@ -1157,26 +1157,41 @@
             console.log('[MC TEST] DOWN ACTIVATE', activeSection + 1);
             activeSection++;
             sections[activeSection].activate();
-            console.log('[MC SCROLL BEFORE]', {
-              section: activeSection,
-              scrollPosition: scroll.position(),
-              sectionTop: sections[activeSection].el.getBoundingClientRect().top,
-              sectionBottom: sections[activeSection].el.getBoundingClientRect().bottom,
-              sectionHeight: sections[activeSection].el.getBoundingClientRect().height,
-              viewportHeight: scroll.render(true).offsetHeight,
-              bodyHeight: scroll.body(true).scrollHeight
-            });
-            try {
-              scroll.update(sections[activeSection].el, true);
-            } catch(e) {
-              console.error('[MC TEST] SCROLL ERROR', e);
-            }
-            console.log('[MC SCROLL AFTER]', {
-              section: activeSection,
-              scrollPosition: scroll.position(),
-              sectionTop: sections[activeSection].el.getBoundingClientRect().top,
-              sectionBottom: sections[activeSection].el.getBoundingClientRect().bottom
-            });
+
+            var secEl = sections[activeSection].el;
+            var scrollHtml = scroll.render(true);
+            var scrollBody = scroll.body(true);
+
+            console.log(
+              '[MC SCROLL BEFORE]',
+              'section=', activeSection,
+              'scrollPos=', scroll.position(),
+              'sectionTop=', secEl.getBoundingClientRect().top,
+              'sectionBottom=', secEl.getBoundingClientRect().bottom,
+              'sectionHeight=', secEl.getBoundingClientRect().height,
+              'viewportHeight=', scrollHtml.offsetHeight,
+              'bodyScrollHeight=', scrollBody.scrollHeight,
+              'bodyClientHeight=', scrollBody.clientHeight,
+              'bodyOffsetHeight=', scrollBody.offsetHeight
+            );
+
+            scroll.update(secEl, true);
+
+            console.log(
+              '[MC SCROLL AFTER]',
+              'section=', activeSection,
+              'scrollPos=', scroll.position(),
+              'sectionTop=', secEl.getBoundingClientRect().top,
+              'sectionBottom=', secEl.getBoundingClientRect().bottom
+            );
+
+            console.log(
+              '[MC SCROLL ELEMENTS]',
+              'htmlScrollTop=', scrollHtml.scrollTop,
+              'bodyTransform=', scrollBody.style.transform,
+              'bodyWebkitTransform=', scrollBody.style.webkitTransform,
+              'bodyClass=', scrollBody.className
+            );
           } else {
             console.log('[MC TEST] DOWN LAST SECTION');
           }
