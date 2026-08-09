@@ -15,6 +15,17 @@
   position: relative;
 }
 
+/* ---- TV scale multiplier ----
+   Пользовательский множитель размера (Compact/Normal/Large/XLarge),
+   задаётся из JS через document.documentElement.style.setProperty.
+   Действует только на TV и только внутри плагина — на body.fontSize
+   Lampa (а значит, на остальной интерфейс) не влияет, т.к. это
+   локальный font-size на самом .mc-page, а все размеры внутри — em
+   и наследуются каскадно от него. */
+.mc-root.tv .mc-page {
+  font-size: calc(1em * var(--mc-tv-scale, 1.15));
+}
+
 /* ---- Background ---- */
 .mc-bg {
   position: fixed;
