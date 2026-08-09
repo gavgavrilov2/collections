@@ -1156,11 +1156,29 @@
           if (activeSection < sections.length - 1) {
             activeSection++;
             console.log('[MC] → activateSection:', activeSection);
+            console.log('[MC] before activate, scrollPos:', scroll.position());
             sections[activeSection].activate();
             console.log('[MC] → after activate');
-            try { scroll.update(sections[activeSection].el, true); } catch(e) {
-              console.error('[MC] scroll.update failed:', e);
-            }
+            var secEl = sections[activeSection].el;
+            var scrollHtml = scroll.render(true);
+            var scrollBody = scroll.body(true);
+            console.log('[MC SCROLL] before:', {
+              section: activeSection,
+              secTop: secEl.getBoundingClientRect().top,
+              secBottom: secEl.getBoundingClientRect().bottom,
+              secHeight: secEl.getBoundingClientRect().height,
+              bodyTop: scrollBody.getBoundingClientRect().top,
+              bodyScrollHeight: scrollBody.scrollHeight,
+              htmlOffsetHeight: scrollHtml.offsetHeight,
+              scrollPos: scroll.position()
+            });
+            scroll.update(secEl, true);
+            console.log('[MC SCROLL] after:', {
+              section: activeSection,
+              scrollPos: scroll.position(),
+              secTop: secEl.getBoundingClientRect().top,
+              secBottom: secEl.getBoundingClientRect().bottom
+            });
           }
         },
         up: function() {
