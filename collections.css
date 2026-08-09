@@ -9,6 +9,9 @@
    --mc-gap = gap between cards (px)
    ============================================================ */
 
+/* ---- Remove Lampa Scroll top padding ---- */
+.scroll__content > .mc-page { margin-top: -2.5em; }
+
 /* ---- Page ---- */
 .mc-page {
   padding: 0 0 80px 0;
@@ -44,13 +47,13 @@
 /* ---- Tabs ---- */
 .mc-tabs {
   display: flex;
-  gap: calc(12px * var(--mc-s, 1));
-  padding: calc(20px * var(--mc-s, 1)) calc(24px * var(--mc-s, 1)) calc(12px * var(--mc-s, 1));
+  gap: calc(14px * var(--mc-s, 1));
+  padding: calc(14px * var(--mc-s, 1)) calc(24px * var(--mc-s, 1)) calc(8px * var(--mc-s, 1));
   overflow-x: auto;
   align-items: center;
   flex-wrap: nowrap;
   background: transparent;
-  border-bottom: 1px solid rgba(255,255,255,0.06);
+  border-bottom: 1px solid rgba(255,255,255,0.04);
 }
 .mc-tabs::-webkit-scrollbar { display: none; }
 
@@ -418,8 +421,8 @@
    Uses larger base values with the same --mc-s multiplier.
    ============================================================ */
 .mc-root.tv .mc-tabs {
-  padding: calc(28px * var(--mc-s, 1)) calc(36px * var(--mc-s, 1)) calc(16px * var(--mc-s, 1));
-  gap: calc(16px * var(--mc-s, 1));
+  padding: calc(18px * var(--mc-s, 1)) calc(36px * var(--mc-s, 1)) calc(12px * var(--mc-s, 1));
+  gap: calc(18px * var(--mc-s, 1));
 }
 .mc-root.tv .mc-tab {
   padding: calc(14px * var(--mc-s, 1)) calc(24px * var(--mc-s, 1));
