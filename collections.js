@@ -915,6 +915,11 @@
     var scroll = new Lampa.Scroll({ mask: true, over: true });
     scroll.body().addClass('mc-page');
 
+    var scrollEl = scroll.render(true);
+    var vh = window.innerHeight;
+    try { if (Lampa.DeviceResCheck && Lampa.DeviceResCheck.mode) { vh = Lampa.DeviceResCheck.mode.height; } } catch(e) {}
+    scrollEl.style.height = vh + 'px';
+
     var contentEl = $('<div></div>');
     scroll.append(contentEl);
 
