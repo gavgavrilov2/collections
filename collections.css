@@ -460,7 +460,7 @@
 
 /* ---- TV focus outlines ---- */
 .mc-root.tv .mc-card.focus           { outline: 3px solid rgba(255,255,255,0.7); outline-offset: 2px; }
-.mc-root.tv .mc-tab.focus            { outline: 2px solid rgba(255,255,255,0.5); outline-offset: 1px; }
-.mc-root.tv .mc-filter-btn.focus     { outline: 2px solid rgba(59,213,116,0.7); outline-offset: 1px; }
+.mc-root.tv .mc-tab.focus            { background: rgba(255,255,255,0.25); border-color: rgba(255,255,255,0.35); }
+.mc-root.tv .mc-filter-btn.focus     { background: rgba(59,213,116,0.15); border-color: rgba(59,213,116,0.5); }
 .mc-root.tv .mc-popup__item.focus    { outline: 2px solid rgba(255,255,255,0.5); outline-offset: -2px; }
-.mc-root.tv .mc-section__arrow.focus { outline: 2px solid rgba(255,255,255,0.5); outline-offset: 1px; }
+.mc-root.tv .mc-section__arrow.focus { background: rgba(255,255,255,0.25); }

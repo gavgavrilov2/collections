@@ -68,8 +68,8 @@
     var w = window.innerWidth || 1920;
     if (typeof Lampa !== 'undefined' && Lampa.Platform && Lampa.Platform.screen('tv')) {
       var base;
-      if (w <= 1280) base = 1.2;
-      else if (w <= 1920) base = 1.35;
+      if (w <= 1280) base = 1.15;
+      else if (w <= 1920) base = 1.20;
       else base = 1.15;
       return base * getTvScaleSetting();
     }
@@ -857,7 +857,7 @@
       }
     });
 
-    showMcPopup({ title: movie.title || movie.name || PLUGIN_NAME, items: items });
+    showMcPopup({ title: movie.title || movie.name || PLUGIN_NAME, items: items, prevController: 'content' });
   }
 
   function showCreateCollectionDialog(movie) {
@@ -870,7 +870,7 @@
     var items = names.map(function(n) {
       return { name: n, onSelect: function() { createAndAdd(n, '', movie); closeMcPopup(); showAddToCollectionDialog(movie); } };
     });
-    showMcPopup({ title: '\u041D\u043E\u0432\u0430\u044F \u043A\u043E\u043B\u043B\u0435\u043A\u0446\u0438\u044F', items: items });
+    showMcPopup({ title: '\u041D\u043E\u0432\u0430\u044F \u043A\u043E\u043B\u043B\u0435\u043A\u0446\u0438\u044F', items: items, prevController: 'content' });
   }
 
   // ========== Scroll ==========
