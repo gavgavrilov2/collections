@@ -308,7 +308,7 @@
 .mc-card--compact { width: var(--mc-cw, 190px); }
 .mc-card--compact .mc-card__poster {
   width: var(--mc-cw, 190px);
-  height: calc(220px * var(--mc-s, 1));
+  height: calc(var(--mc-cw, 190px) * 220 / 190);
   border-radius: calc(10px * var(--mc-s, 1));
   background-size: cover;
   background-position: center top;
@@ -343,7 +343,7 @@
 .mc-card--folder { width: var(--mc-cw, 190px); }
 .mc-card--folder .mc-card__poster {
   width: var(--mc-cw, 190px);
-  height: calc(220px * var(--mc-s, 1));
+  height: calc(var(--mc-cw, 190px) * 220 / 190);
   border-radius: calc(10px * var(--mc-s, 1));
   background-size: cover;
   background-position: center top;
@@ -392,50 +392,6 @@
   font-size: calc(12px * var(--mc-s, 1));
   color: rgba(255,255,255,0.55);
   margin-top: 2px;
-}
-
-/* ---- Folder card (old SVG icon style — kept for reference) ---- */
-.mc-folder-card {
-  flex-shrink: 0;
-  width: var(--mc-cw, 190px);
-  height: calc(120px * var(--mc-s, 1));
-  background: #1a2236;
-  border-radius: calc(10px * var(--mc-s, 1));
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: calc(6px * var(--mc-s, 1));
-  cursor: pointer;
-  transform: none !important;
-  transition: box-shadow .25s ease;
-}
-.mc-folder-card:hover, .mc-folder-card.focus {
-  box-shadow: inset 0 0 0 2.5px rgba(255,255,255,0.9), 0 0 20px rgba(41,153,219,0.12);
-  transform: none !important;
-}
-.mc-folder-card__icon {
-  width: calc(28px * var(--mc-s, 1));
-  height: calc(28px * var(--mc-s, 1));
-  color: rgba(255,255,255,0.50);
-}
-.mc-folder-card__icon svg {
-  width: 100%;
-  height: 100%;
-}
-.mc-folder-card__name {
-  font-size: calc(13px * var(--mc-s, 1));
-  color: #fff;
-  font-weight: 500;
-  text-align: center;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  max-width: 90%;
-}
-.mc-folder-card__count {
-  font-size: calc(11px * var(--mc-s, 1));
-  color: rgba(255,255,255,0.50);
 }
 
 /* ---- Empty state ---- */
@@ -601,10 +557,24 @@
   padding: calc(14px * var(--mc-s, 1)) calc(18px * var(--mc-s, 1));
 }
 
-.mc-root.tv .mc-folder-card { height: calc(140px * var(--mc-s, 1)); }
-.mc-root.tv .mc-folder-card__icon { width: calc(32px * var(--mc-s, 1)); height: calc(32px * var(--mc-s, 1)); }
-.mc-root.tv .mc-folder-card__name { font-size: calc(15px * var(--mc-s, 1)); }
-.mc-root.tv .mc-folder-card__count { font-size: calc(13px * var(--mc-s, 1)); }
+.mc-root.tv .mc-card--compact .mc-card__percent {
+  font-size: calc(14px * var(--mc-s, 1));
+  bottom: calc(10px * var(--mc-s, 1));
+  right: calc(10px * var(--mc-s, 1));
+}
+.mc-root.tv .mc-card--folder .mc-card__menu {
+  width: calc(32px * var(--mc-s, 1));
+  height: calc(32px * var(--mc-s, 1));
+}
+.mc-root.tv .mc-card--folder .mc-card__folder-info {
+  padding: calc(14px * var(--mc-s, 1));
+}
+.mc-root.tv .mc-card--folder .mc-card__folder-name {
+  font-size: calc(16px * var(--mc-s, 1));
+}
+.mc-root.tv .mc-card--folder .mc-card__folder-count {
+  font-size: calc(14px * var(--mc-s, 1));
+}
 
 .mc-root.tv .mc-popup__box { width: 40%; max-width: 600px; }
 .mc-root.tv .mc-popup__head  { padding: calc(40px * var(--mc-s, 1)); padding-bottom: 0; }

@@ -98,10 +98,11 @@
   function getCardW() {
     var w = window.innerWidth || 1920;
     if (typeof Lampa !== 'undefined' && Lampa.Platform && Lampa.Platform.screen('tv')) {
-      var pad = 80;
-      var gap = getTvGap();
-      var s = getTvScaleSetting();
-      var minCard = Math.round(320 * s);
+      var screenS = getScreenScale(w, true);
+      var padPerSide = Math.round(36 * screenS);
+      var pad = padPerSide * 2;
+      var gap = getTvGap(w);
+      var minCard = Math.round(320 * screenS);
       var count = Math.floor((w - pad) / (minCard + gap));
       if (count < 4) count = 4;
       if (count > 8) count = 8;
@@ -298,6 +299,15 @@
     if (cols[collectionId] && cols[collectionId].isDefault) return false;
     delete cols[collectionId];
     saveCollections(cols);
+    return true;
+  }
+
+  function renameCollection(id, newName) {
+    var cols = getCollections();
+    if (!cols[id]) return false;
+    cols[id].name = newName;
+    saveCollections(cols);
+    Lampa.Noty.show('\u041F\u0435\u0440\u0435\u0438\u043C\u0435\u043D\u043E\u0432\u0430\u043D\u043E: \u00AB' + newName + '\u00BB');
     return true;
   }
 
@@ -507,12 +517,6 @@
       }
     }
     return result;
-  }
-
-  function getRecentlyViewed() {
-    var movies = getViewedFromTimeline();
-    movies.sort(function(a, b) { return (b.added_at || 0) - (a.added_at || 0); });
-    return movies.slice(0, 20);
   }
 
   function getCustomCollections() {
@@ -1025,6 +1029,7 @@
     var currentCtrl = 'tabs';
     var tabsEl = null;
     var viewingFolderId = null;
+    var folderMenuClicked = false;
 
     function renderPage() {
       contentEl.empty();
@@ -1039,16 +1044,8 @@
         return;
       }
 
-      var filteredMovies = getMoviesByCategory(activeTab);
-      if (activeFilter !== 'all') {
-        filteredMovies = filteredMovies.filter(function(m) { return isInCollection(activeFilter, m.id); });
-      }
-
       var continueWatching = getContinueWatching();
       if (activeTab !== 'all') continueWatching = continueWatching.filter(function(i) { return detectCategory(i.movie) === activeTab; });
-
-      var recentlyViewed = getRecentlyViewed();
-      if (activeTab !== 'all') recentlyViewed = recentlyViewed.filter(function(m) { return detectCategory(m) === activeTab; });
 
       /* Tabs */
       tabsEl = $('<div class="mc-tabs"></div>');
@@ -1072,32 +1069,24 @@
       contentEl.append(tabsEl);
 
       /* Sections */
-      var hasAny = continueWatching.length > 0 || recentlyViewed.length > 0;
+      var hasContent = continueWatching.length > 0 || customCols.length > 0;
 
-      if (hasAny) {
-        if (continueWatching.length > 0) addSection('\u041F\u0440\u043E\u0434\u043E\u043B\u0436\u0438\u0442\u044C \u043F\u0440\u043E\u0441\u043C\u043E\u0442\u0440', continueWatching, 'compact');
-        if (recentlyViewed.length > 0) addSection('\u041D\u0435\u0434\u0430\u0432\u043D\u043E \u043F\u0440\u043E\u0441\u043C\u043E\u0442\u0440\u0435\u043D\u043E', recentlyViewed, 'portrait');
-      } else {
-        contentEl.append($('<div class="mc-empty">\u041F\u043E\u043A\u0430 \u043F\u0443\u0441\u0442\u043E. \u0414\u043E\u0431\u0430\u0432\u043B\u044F\u0439\u0442\u0435 \u0444\u0438\u043B\u044C\u043C\u044B \u0438\u0437 \u043A\u0430\u0440\u0442\u043E\u0447\u0435\u043A.</div>'));
+      if (continueWatching.length > 0) {
+        addSection('\u041F\u0440\u043E\u0434\u043E\u043B\u0436\u0438\u0442\u044C \u043F\u0440\u043E\u0441\u043C\u043E\u0442\u0440', continueWatching, 'compact');
       }
 
-      if (filteredMovies.length > 0) {
-        addSection('\u0412\u0441\u0435 \u0444\u0438\u043B\u044C\u043C\u044B \u0432 \u043A\u043E\u043B\u043B\u0435\u043A\u0446\u0438\u0438 (' + filteredMovies.length + ')', filteredMovies, 'portrait');
-      }
-
-      var customCols = getCustomCollections();
       if (customCols.length > 0) {
         addSection('\u041C\u043E\u0438 \u043F\u0430\u043F\u043A\u0438', customCols, 'folders');
+      }
+
+      if (!hasContent) {
+        contentEl.append($('<div class="mc-empty">\u041F\u043E\u043A\u0430 \u043F\u0443\u0441\u0442\u043E. \u0414\u043E\u0431\u0430\u0432\u043B\u044F\u0439\u0442\u0435 \u0444\u0438\u043B\u044C\u043C\u044B \u0438\u0437 \u043A\u0430\u0440\u0442\u043E\u0447\u0435\u043A.</div>'));
       }
 
       bindTabEvents(tabsEl);
       try { scroll.update(); } catch(e) {}
 
       activateTabs();
-
-      if (activeTab === 'all') {
-        loadPopularAsync();
-      }
     }
 
     function addSection(title, data, type) {
@@ -1172,12 +1161,12 @@
         for (var i = 0; i < data.length; i++) {
           var folder = data[i];
           var folderBg = folder.poster || '';
-          var folderSvg = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="16" height="16"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>';
+          var menuSvg = '<svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16"><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></svg>';
 
           var card = $('<div class="mc-card mc-card--folder selector" data-folder="' + folder.id + '">'
             + '<div class="mc-card__poster" style="background-image:url(' + (folderBg || '') + ')">'
             + '<div class="mc-card__gradient"></div>'
-            + '<div class="mc-card__menu">' + folderSvg + '</div>'
+            + '<div class="mc-card__menu">' + menuSvg + '</div>'
             + '<div class="mc-card__folder-info">'
             + '<div class="mc-card__folder-name">' + folder.name + '</div>'
             + '<div class="mc-card__folder-count">' + folder.count + ' \u0444\u0438\u043B\u044C\u043C\u043E\u0432</div>'
@@ -1185,7 +1174,17 @@
           )[0];
 
           (function(cardEl, folderData, hs, sec) {
+            var menuEl = cardEl.querySelector('.mc-card__menu');
+            if (menuEl) {
+              menuEl.addEventListener('click', function(e) {
+                e.stopPropagation();
+                folderMenuClicked = true;
+                setTimeout(function() { folderMenuClicked = false; }, 200);
+                showFolderMenuPopup(folderData);
+              });
+            }
             cardEl.addEventListener('hover:enter', function() {
+              if (folderMenuClicked) return;
               viewingFolderId = folderData.id;
               renderPage();
               setTimeout(function() {
@@ -1272,130 +1271,6 @@
       } else {
         contentEl.append($('<div class="mc-empty">\u041F\u0430\u043F\u043A\u0430 \u043F\u0443\u0441\u0442\u0430.</div>'));
       }
-    }
-
-    function insertSectionAt(title, data, type, insertIdx) {
-      var sectionEl = $('<div class="mc-section"></div>');
-      sectionEl.append($('<div class="mc-section__head"><div class="mc-section__title">' + title + '</div><div class="mc-section__arrows"><div class="mc-section__arrow" data-dir="-1"><svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg></div><div class="mc-section__arrow" data-dir="1"><svg viewBox="0 0 24 24"><polyline points="9 6 15 12 9 18"/></svg></div></div></div>'));
-
-      var hscroll = new Lampa.Scroll({ mask: true, horizontal: true });
-      hscroll.body().addClass('mc-row-scroll');
-
-      var sectionObj = {
-        el: sectionEl[0],
-        hscroll: hscroll,
-        last: null,
-        activate: function() {}
-      };
-
-      if (type === 'landscape') {
-        for (var i = 0; i < data.length; i++) {
-          var it = data[i], m = it.movie;
-          var bg = backdropUrl(m);
-          var meta = it.progress.season ? 'S' + it.progress.season + ' \u00B7 E' + it.progress.episode : (it.progress.episode ? '\u042D\u043F. ' + it.progress.episode : '');
-          var card = $('<div class="mc-card mc-card--landscape selector" data-mid="' + m.id + '">'
-            + '<div class="mc-card__backdrop" style="background-image:url(' + (bg || '') + ')">'
-            + '<div class="mc-card__gradient"></div>'
-            + '<div class="mc-card__play"><svg viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"/></svg></div>'
-            + '</div>'
-            + '<div class="mc-card__info">'
-            + '<div class="mc-card__title">' + (m.title || m.name || '') + '</div>'
-            + '<div class="mc-card__subtitle">' + (m.original_title || m.original_name || '') + '</div>'
-            + (meta ? '<div class="mc-card__meta">' + meta + '</div>' : '')
-            + '<div class="mc-card__progress"><div class="mc-card__progress-bar" style="width:' + it.percent + '%"></div></div>'
-            + '<div class="mc-card__left">' + it.left + ' \u043C\u0438\u043D \u043E\u0441\u0442\u0430\u043B\u043E\u0441\u044C</div>'
-            + '</div></div>'
-          ).data('movie', m)[0];
-          (function(cardEl, movie, hs, sec) {
-            cardEl.addEventListener('hover:enter', function() { openFullCard(movie); });
-            cardEl.addEventListener('hover:focus', function() { sec.last = cardEl; hs.update(cardEl, true); });
-          })(card, m, hscroll, sectionObj);
-          hscroll.append(card);
-        }
-      } else if (type === 'folders') {
-        for (var i = 0; i < data.length; i++) {
-          var folder = data[i];
-          var card = $('<div class="mc-folder-card selector" data-folder="' + folder.id + '">'
-            + '<div class="mc-folder-card__icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg></div>'
-            + '<div class="mc-folder-card__name">' + folder.name + '</div>'
-            + '<div class="mc-folder-card__count">' + folder.count + ' \u0444\u0438\u043B\u044C\u043C\u043E\u0432</div>'
-            + '</div>'
-          )[0];
-          (function(cardEl, folderData, hs, sec) {
-            cardEl.addEventListener('hover:enter', function() {
-              viewingFolderId = folderData.id;
-              renderPage();
-              setTimeout(function() {
-                if (sections.length > 0) activateSection(0);
-              }, 100);
-            });
-            cardEl.addEventListener('hover:focus', function() { sec.last = cardEl; hs.update(cardEl, true); });
-          })(card, folder, hscroll, sectionObj);
-          hscroll.append(card);
-        }
-      } else {
-        for (var i = 0; i < data.length; i++) {
-          var m = data[i];
-          var url = posterUrl(m);
-          var year = getYear(m);
-          var rating = (m.vote_average || 0).toFixed(1);
-          var card = $('<div class="mc-card mc-card--portrait selector" data-mid="' + m.id + '">'
-            + '<div class="mc-card__poster" style="background-image:url(' + (url || '') + ')">'
-            + (m.vote_average > 0 ? '<div class="mc-card__badge">' + rating + '</div>' : '')
-            + '</div>'
-            + '<div class="mc-card__info">'
-            + '<div class="mc-card__title">' + (m.title || m.name || '') + '</div>'
-            + '<div class="mc-card__subtitle">' + (m.original_title || m.original_name || '') + '</div>'
-            + (year ? '<div class="mc-card__year">' + year + '</div>' : '')
-            + '</div></div>'
-          ).data('movie', m)[0];
-          (function(cardEl, movie, hs, sec) {
-            cardEl.addEventListener('hover:enter', function() { openFullCard(movie); });
-            cardEl.addEventListener('hover:focus', function() { sec.last = cardEl; hs.update(cardEl, true); });
-          })(card, m, hscroll, sectionObj);
-          hscroll.append(card);
-        }
-      }
-
-      sectionEl.append(hscroll.render());
-
-      if (insertIdx >= 0 && insertIdx < sections.length) {
-        var refEl = sections[insertIdx].el;
-        refEl.parentNode.insertBefore(sectionEl[0], refEl);
-        sections.splice(insertIdx, 0, sectionObj);
-        for (var i = insertIdx + 1; i < sections.length; i++) {
-          (function(newIdx) {
-            sections[i].activate = function() { activateSection(newIdx); };
-          })(i);
-        }
-      } else {
-        contentEl.append(sectionEl);
-        sections.push(sectionObj);
-      }
-
-      sectionEl.find('.mc-section__arrow').each(function() {
-        var el = this;
-        el.addEventListener('click', function() {
-          var dir = parseInt(el.getAttribute('data-dir')) || 0;
-          hscroll.wheel(dir * getLandscapeW() * 1.1);
-        });
-      });
-    }
-
-    function loadPopularAsync() {
-      try {
-        Lampa.Api.list(
-          { url: 'movie/popular', page: 1 },
-          function(data) {
-            var movies = data && data.results ? data.results.slice(0, 20) : [];
-            if (movies.length === 0) return;
-            if (viewingFolderId || activeTab !== 'all') return;
-            insertSectionAt('\u041F\u043E\u043F\u0443\u043B\u044F\u0440\u043D\u044B\u0435 \u0444\u0438\u043B\u044C\u043C\u044B', movies, 'portrait', 1);
-            try { scroll.update(); } catch(e) {}
-          },
-          function() {}
-        );
-      } catch(e) {}
     }
 
     function bindTabEvents(tabsEl) {
@@ -1556,6 +1431,62 @@
         if (f > 0 && k[f-1] === activeFilter) { startIdx = f; break; }
       }
       showMcPopup({ title: '\u0424\u0438\u043B\u044C\u0442\u0440', items: filterItems, focusIdx: startIdx, prevController: 'content' });
+    }
+
+    function showFolderMenuPopup(folder) {
+      showMcPopup({
+        title: folder.name,
+        items: [
+          { name: '\u041F\u0435\u0440\u0435\u0438\u043C\u0435\u043D\u043E\u0432\u0430\u0442\u044C', onSelect: function() {
+            closeMcPopup();
+            showRenameFolderDialog(folder);
+          }},
+          { name: '\u0423\u0434\u0430\u043B\u0438\u0442\u044C', onSelect: function() {
+            closeMcPopup();
+            confirmDeleteFolder(folder);
+          }},
+          { name: '\u041E\u0442\u043C\u0435\u043D\u0430', onSelect: function() { closeMcPopup(); } }
+        ],
+        prevController: 'content'
+      });
+    }
+
+    function showRenameFolderDialog(folder) {
+      var names = [
+        '\u0414\u043E\u043A\u0443\u043C\u0435\u043D\u0442\u0430\u043B\u044C\u043D\u044B\u0435', '\u041A\u043E\u043C\u0435\u0434\u0438\u0438', '\u0423\u0436\u0430\u0441\u044B', '\u0424\u0430\u043D\u0442\u0430\u0441\u0442\u0438\u043A\u0430',
+        '\u041C\u0435\u043B\u043E\u0434\u0440\u0430\u043C\u044B', '\u0411\u043E\u0435\u0432\u0438\u043A\u0438', '\u0414\u0435\u0442\u0435\u043A\u0442\u0438\u0432\u044B', '\u0414\u0440\u0430\u043C\u044B',
+        '\u041C\u044E\u0437\u044B\u043A\u043B\u044B', '\u0418\u0441\u0442\u043E\u0440\u0438\u0447\u0435\u0441\u043A\u0438\u0435', '\u0412\u043E\u0435\u043D\u043D\u044B\u0435', '\u041A\u0440\u0438\u043C\u0438\u043D\u0430\u043B',
+        '\u0417\u0430\u0433\u0430\u0434\u043A\u0438', '\u0421\u0435\u043C\u0435\u0439\u043D\u044B\u0435', '\u0414\u0435\u0442\u0441\u043A\u0438\u0435'
+      ];
+      var items = names.map(function(n) {
+        return {
+          name: n,
+          onSelect: function() {
+            renameCollection(folder.id, n);
+            closeMcPopup();
+            renderPage();
+            setTimeout(function() { activateTabs(); }, 50);
+          }
+        };
+      });
+      showMcPopup({ title: '\u041F\u0435\u0440\u0435\u0438\u043C\u0435\u043D\u043E\u0432\u0430\u0442\u044C', items: items, prevController: 'content' });
+    }
+
+    function confirmDeleteFolder(folder) {
+      showMcPopup({
+        title: '\u0423\u0434\u0430\u043B\u0438\u0442\u044C \u00AB' + folder.name + '\u00BB?',
+        items: [
+          { name: '\u0414\u0430, \u0443\u0434\u0430\u043B\u0438\u0442\u044C', onSelect: function() {
+            deleteCollection(folder.id);
+            if (viewingFolderId === folder.id) viewingFolderId = null;
+            closeMcPopup();
+            renderPage();
+            setTimeout(function() { activateTabs(); }, 50);
+          }},
+          { name: '\u041E\u0442\u043C\u0435\u043D\u0430', onSelect: function() { closeMcPopup(); } }
+        ],
+        prevController: 'content'
+      });
     }
 
     function showTvScaleDialog() {
