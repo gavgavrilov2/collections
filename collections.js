@@ -919,7 +919,7 @@
 
     var sections = [];
     var activeSection = -1;
-    var currentCtrl = 'mc_tabs';
+    var currentCtrl = 'tabs';
     var tabsEl = null;
 
     function renderPage() {
@@ -1094,9 +1094,9 @@
 
     function activateTabs() {
       activeSection = -1;
-      currentCtrl = 'mc_tabs';
+      currentCtrl = 'tabs';
 
-      Lampa.Controller.add('mc_tabs', {
+      Lampa.Controller.add('content', {
         toggle: function() {
           Lampa.Controller.collectionSet(tabsEl);
           var activeTabEl = tabsEl[0].querySelector('.mc-tab.active');
@@ -1120,17 +1120,17 @@
         back: function() { Lampa.Activity.backward(); }
       });
 
-      Lampa.Controller.toggle('mc_tabs');
+      Lampa.Controller.toggle('content');
     }
 
     function activateSection(idx) {
       if (idx < 0 || idx >= sections.length) return;
       activeSection = idx;
-      currentCtrl = 'mc_row';
+      currentCtrl = 'row';
 
       var section = sections[idx];
 
-      Lampa.Controller.add('mc_row', {
+      Lampa.Controller.add('content', {
         toggle: function() {
           Lampa.Controller.collectionSet(section.hscroll.render(true));
           Lampa.Controller.collectionFocus(section.last || false, section.hscroll.render(true));
@@ -1165,7 +1165,7 @@
         back: function() { Lampa.Activity.backward(); }
       });
 
-      Lampa.Controller.toggle('mc_row');
+      Lampa.Controller.toggle('content');
     }
 
     function showFilterDialog() {
@@ -1186,7 +1186,7 @@
         if (f === 0 && activeFilter === 'all') { startIdx = 0; break; }
         if (f > 0 && k[f-1] === activeFilter) { startIdx = f; break; }
       }
-      showMcPopup({ title: '\u0424\u0438\u043B\u044C\u0442\u0440', items: filterItems, focusIdx: startIdx, prevController: currentCtrl });
+      showMcPopup({ title: '\u0424\u0438\u043B\u044C\u0442\u0440', items: filterItems, focusIdx: startIdx, prevController: 'content' });
     }
 
     function showTvScaleDialog() {
@@ -1210,7 +1210,7 @@
           if (k === cur) startIdx = i;
         })(keys[i]);
       }
-      showMcPopup({ title: '\u0420\u0430\u0437\u043C\u0435\u0440 \u0438\u043D\u0442\u0435\u0440\u0444\u0435\u0439\u0441\u0430', items: items, focusIdx: startIdx, prevController: currentCtrl });
+      showMcPopup({ title: '\u0420\u0430\u0437\u043C\u0435\u0440 \u0438\u043D\u0442\u0435\u0440\u0444\u0435\u0439\u0441\u0430', items: items, focusIdx: startIdx, prevController: 'content' });
     }
 
     var mcReady = false;
@@ -1218,7 +1218,7 @@
     function onActivityStart(e) {
       if (e.type == 'start' && e.component == 'mc_main' && mcReady) {
         try {
-          if (currentCtrl == 'mc_row' && activeSection >= 0 && sections[activeSection]) {
+          if (currentCtrl == 'row' && activeSection >= 0 && sections[activeSection]) {
             activateSection(activeSection);
           } else {
             activateTabs();
