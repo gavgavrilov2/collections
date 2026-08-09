@@ -1157,48 +1157,10 @@
           }
         },
         down: function() {
-          console.log('[MC TEST] DOWN ENTER', activeSection, sections.length);
           if (activeSection < sections.length - 1) {
-            console.log('[MC TEST] DOWN ACTIVATE', activeSection + 1);
             activeSection++;
             sections[activeSection].activate();
-
-            var secEl = sections[activeSection].el;
-            var scrollHtml = scroll.render(true);
-            var scrollBody = scroll.body(true);
-
-            console.log(
-              '[MC SCROLL BEFORE]',
-              'section=', activeSection,
-              'scrollPos=', scroll.position(),
-              'sectionTop=', secEl.getBoundingClientRect().top,
-              'sectionBottom=', secEl.getBoundingClientRect().bottom,
-              'sectionHeight=', secEl.getBoundingClientRect().height,
-              'viewportHeight=', scrollHtml.offsetHeight,
-              'bodyScrollHeight=', scrollBody.scrollHeight,
-              'bodyClientHeight=', scrollBody.clientHeight,
-              'bodyOffsetHeight=', scrollBody.offsetHeight
-            );
-
-            scroll.update(secEl, true);
-
-            console.log(
-              '[MC SCROLL AFTER]',
-              'section=', activeSection,
-              'scrollPos=', scroll.position(),
-              'sectionTop=', secEl.getBoundingClientRect().top,
-              'sectionBottom=', secEl.getBoundingClientRect().bottom
-            );
-
-            console.log(
-              '[MC SCROLL ELEMENTS]',
-              'htmlScrollTop=', scrollHtml.scrollTop,
-              'bodyTransform=', scrollBody.style.transform,
-              'bodyWebkitTransform=', scrollBody.style.webkitTransform,
-              'bodyClass=', scrollBody.className
-            );
-          } else {
-            console.log('[MC TEST] DOWN LAST SECTION');
+            try { scroll.update(sections[activeSection].el, true); } catch(e) {}
           }
         },
         up: function() {
