@@ -960,7 +960,7 @@
       }
       tabsEl.append($('<div class="mc-filter-btn selector' + (activeFilter !== 'all' ? ' active' : '') + '" data-filter="toggle"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg><span class="mc-filter-btn__label">' + filterLabel + '</span></div>'));
 
-      if (typeof Lampa !== 'undefined' && Lampa.Platform && Lampa.Platform.tv()) {
+      if (typeof Lampa !== 'undefined' && Lampa.Platform) {
         var scaleNames = { compact: '\u041A\u043E\u043C\u043F\u0430\u043A\u0442\u043D\u044B\u0439', normal: '\u041E\u0431\u044B\u0447\u043D\u044B\u0439', large: '\u041A\u0440\u0443\u043F\u043D\u044B\u0439', xlarge: '\u041E\u0447\u0435\u043D\u044C \u043A\u0440\u0443\u043F\u043D\u044B\u0439' };
         var curScale = localStorage.getItem(TV_SCALE_KEY) || 'large';
         tabsEl.append($('<div class="mc-filter-btn selector" data-tv-scale="open"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/></svg><span class="mc-filter-btn__label">' + (scaleNames[curScale] || scaleNames.large) + '</span></div>'));
@@ -1152,10 +1152,15 @@
           }
         },
         down: function() {
+          console.log('[MC] DOWN fired, activeSection:', activeSection, 'sections:', sections.length);
           if (activeSection < sections.length - 1) {
             activeSection++;
+            console.log('[MC] → activateSection:', activeSection);
             sections[activeSection].activate();
-            try { scroll.update(sections[activeSection].el, true); } catch(e) {}
+            console.log('[MC] → after activate');
+            try { scroll.update(sections[activeSection].el, true); } catch(e) {
+              console.error('[MC] scroll.update failed:', e);
+            }
           }
         },
         up: function() {
