@@ -895,14 +895,10 @@
     document.body.classList.remove('mc-active');
   }
 
-  function createMcBackground(backdropPath) {
+  function createMcBackground() {
     removeMcBackground();
     var bg = document.createElement('div');
     bg.className = 'mc-bg';
-    if (backdropPath) {
-      var url = backdropPath.startsWith('http') ? backdropPath : 'https://image.tmdb.org/t/p/w1280' + backdropPath;
-      bg.style.backgroundImage = 'url(' + url + ')';
-    }
     document.body.appendChild(bg);
     document.body.classList.add('mc-active');
   }
@@ -919,10 +915,7 @@
     var contentEl = $('<div></div>');
     scroll.append(contentEl);
 
-    var movies = getAllMovies();
-    var backdropMovie = movies.length > 0 ? movies[0] : null;
-    var backdropPath = backdropMovie ? (backdropMovie.backdrop_path || backdropMovie.poster_path || '') : '';
-    createMcBackground(backdropPath);
+    createMcBackground();
 
     function renderPage() {
       contentEl.empty();
