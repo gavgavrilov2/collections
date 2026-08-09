@@ -62,7 +62,7 @@
   padding: calc(10px * var(--mc-s, 1)) calc(18px * var(--mc-s, 1));
   border-radius: calc(20px * var(--mc-s, 1));
   background: rgba(255,255,255,0.05);
-  border: calc(1.5px * var(--mc-s, 1)) solid transparent;
+  border: calc(1.5px * var(--mc-s, 1)) solid rgba(255,255,255,0.06);
   cursor: pointer;
   transform: none !important;
   transition: all .2s;
@@ -83,11 +83,11 @@
 .mc-tab.active .mc-tab__label { color: #fff; }
 .mc-tab__count {
   font-size: calc(11px * var(--mc-s, 1));
-  color: rgba(255,255,255,0.45);
+  color: rgba(255,255,255,0.65);
   margin-left: calc(6px * var(--mc-s, 1));
   padding: calc(2px * var(--mc-s, 1)) calc(6px * var(--mc-s, 1));
   background: rgba(255,255,255,0.06);
-  border-radius: calc(6px * var(--mc-s, 1));
+  border-radius: calc(8px * var(--mc-s, 1));
   font-weight: 600;
   flex-shrink: 0;
   white-space: nowrap;
@@ -427,7 +427,7 @@
 }
 .mc-root.tv .mc-tab__icon  { font-size: calc(20px * var(--mc-s, 1)); }
 .mc-root.tv .mc-tab__label { font-size: calc(17px * var(--mc-s, 1)); }
-.mc-root.tv .mc-tab__count { font-size: calc(13px * var(--mc-s, 1)); }
+.mc-root.tv .mc-tab__count { font-size: calc(15px * var(--mc-s, 1)); }
 
 .mc-root.tv .mc-filter-btn {
   padding: calc(14px * var(--mc-s, 1)) calc(22px * var(--mc-s, 1));
