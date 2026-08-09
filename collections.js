@@ -1213,10 +1213,27 @@
       showMcPopup({ title: '\u0420\u0430\u0437\u043C\u0435\u0440 \u0438\u043D\u0442\u0435\u0440\u0444\u0435\u0439\u0441\u0430', items: items, focusIdx: startIdx, prevController: currentCtrl });
     }
 
+    var mcReady = false;
+
+    function onActivityStart(e) {
+      if (e.type == 'start' && e.component == 'mc_main' && mcReady) {
+        try {
+          if (currentCtrl == 'mc_row' && activeSection >= 0 && sections[activeSection]) {
+            activateSection(activeSection);
+          } else {
+            activateTabs();
+          }
+        } catch(ex) {}
+      }
+    }
+
+    Lampa.Listener.follow('activity', onActivityStart);
+
     Lampa.Activity.push({
       title: PLUGIN_NAME,
       component: 'mc_main',
       onBack: function() {
+        Lampa.Listener.remove('activity', onActivityStart);
         removeMcBackground();
         Lampa.Controller.toggle('menu');
       }
@@ -1228,6 +1245,7 @@
         active.activity.render().empty().append(scroll.render());
       }
       renderPage();
+      mcReady = true;
       try { scroll.update(); } catch(e) {}
     }, 300);
   }
