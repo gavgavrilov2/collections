@@ -1152,10 +1152,18 @@
           }
         },
         down: function() {
+          console.log('[MC TEST] DOWN ENTER', activeSection, sections.length);
           if (activeSection < sections.length - 1) {
+            console.log('[MC TEST] DOWN ACTIVATE', activeSection + 1);
             activeSection++;
             sections[activeSection].activate();
-            try { scroll.update(sections[activeSection].el, true); } catch(e) {}
+            try {
+              scroll.update(sections[activeSection].el, true);
+            } catch(e) {
+              console.error('[MC TEST] SCROLL ERROR', e);
+            }
+          } else {
+            console.log('[MC TEST] DOWN LAST SECTION');
           }
         },
         up: function() {
