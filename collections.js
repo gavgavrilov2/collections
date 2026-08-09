@@ -7,15 +7,6 @@
   var VIEWED_KEY = 'mc_last_viewed';
   var ACTIVE_TAB_KEY = 'mc_active_tab';
   var ACTIVE_FILTER_KEY = 'mc_active_filter';
-  var TV_SCALE_KEY = 'mc_tv_scale';
-
-  var TV_SCALE_PRESETS = {
-    compact: 0.85,
-    normal: 1.0,
-    large: 1.15,
-    xlarge: 1.2
-  };
-
   var DEFAULT_COLLECTIONS = {
     watched:     { name: 'Посмотрел',       icon: '\u25B6', movies: [], isDefault: true },
     will_watch:  { name: 'Буду смотреть',   icon: '\u23F8', movies: [], isDefault: true },
@@ -59,60 +50,7 @@
     return tlHash([s, s > 10 ? ':' : '', e, card.original_title || card.original_name].join(''));
   }
 
-  function getTvScaleSetting() {
-    try {
-      var v = localStorage.getItem(TV_SCALE_KEY);
-      if (v && TV_SCALE_PRESETS[v] !== undefined) return TV_SCALE_PRESETS[v];
-    } catch(e) {}
-    return TV_SCALE_PRESETS.large;
-  }
-
-  function getScreenScale() {
-    var w = window.innerWidth || 1920;
-    if (typeof Lampa !== 'undefined' && Lampa.Platform && Lampa.Platform.screen('tv')) {
-      var base;
-      if (w <= 1280) base = 1.15;
-      else if (w <= 1920) base = 1.20;
-      else base = 1.15;
-      return base * getTvScaleSetting();
-    }
-    var scale = w / 1920;
-    if (scale < 0.78) scale = 0.78;
-    if (scale > 1.30) scale = 1.30;
-    return scale;
-  }
-
-  function px(v) { return Math.round(v * getScreenScale()) + 'px'; }
-
-  function getTvGap() {
-    if (!(typeof Lampa !== 'undefined' && Lampa.Platform && Lampa.Platform.screen('tv'))) return 14;
-    var s = getTvScaleSetting();
-    var w = window.innerWidth || 1920;
-    var base;
-    if (w <= 1280) base = 20;
-    else if (w <= 1920) base = 28;
-    else base = 36;
-    return Math.round(base * s);
-  }
-
-  function getCardW() {
-    var w = window.innerWidth || 1920;
-    if (typeof Lampa !== 'undefined' && Lampa.Platform && Lampa.Platform.screen('tv')) {
-      var screenS = getScreenScale(w, true);
-      var padPerSide = Math.round(36 * screenS);
-      var pad = padPerSide * 2;
-      var gap = getTvGap(w);
-      var minCard = Math.round(320 * screenS);
-      var count = Math.floor((w - pad) / (minCard + gap));
-      if (count < 4) count = 4;
-      if (count > 8) count = 8;
-      return Math.floor((w - pad - gap * (count - 1)) / count);
-    }
-    return Math.round(190 * getScreenScale());
-  }
-  function getCardH() { return Math.round(getCardW() * 1.5); }
-  function getLandscapeW() { return Math.round(getCardW() * 2); }
-  function getLandscapeH() { return Math.round(getLandscapeW() * 0.56); }
+  /* Scaling functions removed — CSS uses em, inherits from Lampa body.fontSize */
 
   function getCollections() {
     if (_collectionsCache) return _collectionsCache;
@@ -625,13 +563,6 @@
   var _resizeTimer = null;
 
   function updateSizes() {
-    var r = document.documentElement;
-    r.style.setProperty('--mc-cw', getCardW() + 'px');
-    r.style.setProperty('--mc-ch', getCardH() + 'px');
-    r.style.setProperty('--mc-lw', getLandscapeW() + 'px');
-    r.style.setProperty('--mc-lh', getLandscapeH() + 'px');
-    r.style.setProperty('--mc-gap', getTvGap() + 'px');
-    r.style.setProperty('--mc-s', getScreenScale());
     document.documentElement.classList.toggle('mc-root', true);
     document.documentElement.classList.toggle('tv', typeof Lampa !== 'undefined' && Lampa.Platform && Lampa.Platform.screen('tv'));
   }
@@ -880,7 +811,7 @@
 
     items.push({
       className: 'mc-popup__create',
-      html: '<span style="font-size:' + px(18) + ';color:#3bd574;">+</span><span class="mc-popup__create-text">\u0421\u043E\u0437\u0434\u0430\u0442\u044C \u043A\u043E\u043B\u043B\u0435\u043A\u0446\u0438\u044E</span>',
+      html: '<span style="font-size:1em;color:#3bd574;">+</span><span class="mc-popup__create-text">\u0421\u043E\u0437\u0434\u0430\u0442\u044C \u043A\u043E\u043B\u043B\u0435\u043A\u0446\u0438\u044E</span>',
       onSelect: function() {
         closeMcPopup();
         showCreateCollectionDialog(movie);
@@ -942,7 +873,8 @@
 
   function scrollRow(row, dir) {
     if (!row) return;
-    row.scrollBy({ left: dir * getLandscapeW() * 1.1, behavior: 'smooth' });
+    var em = parseFloat(getComputedStyle(document.body).fontSize) || 22;
+    row.scrollBy({ left: dir * 18 * em, behavior: 'smooth' });
   }
 
   // ========== Head Lifecycle ==========
@@ -968,9 +900,7 @@
 
     if (_headBtns.length === 0) {
       var svgFilter = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>';
-      var svgGear   = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/></svg>';
 
-      _headBtns.push(Lampa.Head.addIcon(svgGear,   function() { showTvScaleDialog(); }));
       _headBtns.push(Lampa.Head.addIcon(svgFilter, function() { showFilterDialog(); }));
     }
   }
@@ -1233,7 +1163,8 @@
         var el = this;
         el.addEventListener('click', function() {
           var dir = parseInt(el.getAttribute('data-dir')) || 0;
-          hscroll.wheel(dir * getLandscapeW() * 1.1);
+          var em = parseFloat(getComputedStyle(document.body).fontSize) || 22;
+          hscroll.wheel(dir * 18 * em);
         });
       });
 
@@ -1487,30 +1418,6 @@
         ],
         prevController: 'content'
       });
-    }
-
-    function showTvScaleDialog() {
-      var scaleNames = { compact: '\u041A\u043E\u043C\u043F\u0430\u043A\u0442\u043D\u044B\u0439', normal: '\u041E\u0431\u044B\u0447\u043D\u044B\u0439', large: '\u041A\u0440\u0443\u043F\u043D\u044B\u0439', xlarge: '\u041E\u0447\u0435\u043D\u044C \u043A\u0440\u0443\u043F\u043D\u044B\u0439' };
-      var cur = localStorage.getItem(TV_SCALE_KEY) || 'large';
-      var keys = ['compact', 'normal', 'large', 'xlarge'];
-      var items = [];
-      var startIdx = 2;
-      for (var i = 0; i < keys.length; i++) {
-        (function(k) {
-          items.push({
-            name: scaleNames[k],
-            checkbox: k === cur,
-            onSelect: function() {
-              localStorage.setItem(TV_SCALE_KEY, k);
-              closeMcPopup();
-              updateSizes();
-              renderPage();
-            }
-          });
-          if (k === cur) startIdx = i;
-        })(keys[i]);
-      }
-      showMcPopup({ title: '\u0420\u0430\u0437\u043C\u0435\u0440 \u0438\u043D\u0442\u0435\u0440\u0444\u0435\u0439\u0441\u0430', items: items, focusIdx: startIdx, prevController: 'content' });
     }
 
     var mcReady = false;
