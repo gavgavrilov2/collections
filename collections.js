@@ -1578,7 +1578,7 @@
         var drcH = 0;
         try { if (Lampa.DeviceResCheck && Lampa.DeviceResCheck.mode) drcH = Lampa.DeviceResCheck.mode.height; } catch(e) {}
         var scEl = null;
-        try { if (scroll && scroll.render) scEl = scroll.render(); } catch(e) {}
+        try { if (scroll && scroll.render) scEl = scroll.render(true); } catch(e) {}
         var scContent = scEl ? scEl.querySelector('.scroll__content') : null;
         var mcPage = document.querySelector('.mc-page');
         var tabs = document.querySelector('.mc-tabs');
