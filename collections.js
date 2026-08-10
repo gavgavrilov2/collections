@@ -7,13 +7,6 @@
   var VIEWED_KEY = 'mc_last_viewed';
   var ACTIVE_TAB_KEY = 'mc_active_tab';
   var ACTIVE_FILTER_KEY = 'mc_active_filter';
-  var TV_SCALE_KEY = 'mc_tv_scale';
-  var TV_SCALE_PRESETS = {
-    compact: 0.85,
-    normal: 1.0,
-    large: 1.15,
-    xlarge: 1.3
-  };
   var DEFAULT_COLLECTIONS = {
     watched:     { name: 'Посмотрел',       icon: '\u25B6', movies: [], isDefault: true },
     will_watch:  { name: 'Буду смотреть',   icon: '\u23F8', movies: [], isDefault: true },
@@ -569,24 +562,9 @@
 
   var _resizeTimer = null;
 
-  function getTvScaleSetting() {
-    try {
-      var v = localStorage.getItem(TV_SCALE_KEY);
-      if (v && TV_SCALE_PRESETS[v] !== undefined) return TV_SCALE_PRESETS[v];
-    } catch(e) {}
-    return TV_SCALE_PRESETS.large;
-  }
-
-  function applyTvScale() {
-    // Множитель поверх em-каскада (см. collections.css: .mc-root.tv .mc-page).
-    // Не трогает body.fontSize самого Lampa — значит, не ломает остальной интерфейс.
-    document.documentElement.style.setProperty('--mc-tv-scale', getTvScaleSetting());
-  }
-
   function updateSizes() {
     document.documentElement.classList.toggle('mc-root', true);
     document.documentElement.classList.toggle('tv', typeof Lampa !== 'undefined' && Lampa.Platform && Lampa.Platform.screen('tv'));
-    applyTvScale();
   }
 
   function onResize() {
@@ -884,36 +862,6 @@
     showMcPopup({ title: '\u0421\u043E\u0437\u0434\u0430\u0442\u044C \u043F\u0430\u043F\u043A\u0443', items: items, prevController: 'content' });
   }
 
-  // ========== TV Scale Dialog ==========
-
-  function showTvScaleDialog() {
-    var presets = [
-      { key: 'compact', name: '\u041A\u043E\u043C\u043F\u0430\u043A\u0442\u043D\u044B\u0439' },
-      { key: 'normal',  name: '\u041E\u0431\u044B\u0447\u043D\u044B\u0439' },
-      { key: 'large',   name: '\u041A\u0440\u0443\u043F\u043D\u044B\u0439' },
-      { key: 'xlarge',  name: '\u041E\u0447\u0435\u043D\u044C \u043A\u0440\u0443\u043F\u043D\u044B\u0439' }
-    ];
-    var cur = localStorage.getItem(TV_SCALE_KEY) || 'large';
-    var startIdx = 0;
-    var items = presets.map(function(p, idx) {
-      if (p.key === cur) startIdx = idx;
-      return {
-        name: p.name,
-        checkbox: p.key === cur,
-        onSelect: function() {
-          localStorage.setItem(TV_SCALE_KEY, p.key);
-          applyTvScale();
-          var popupList = document.querySelector('.mc-popup__list');
-          if (popupList) {
-            var cbs = popupList.querySelectorAll('.mc-popup__cb');
-            for (var j = 0; j < cbs.length; j++) cbs[j].classList.toggle('on', j === idx);
-          }
-        }
-      };
-    });
-    showMcPopup({ title: '\u0420\u0430\u0437\u043C\u0435\u0440 \u0438\u043D\u0442\u0435\u0440\u0444\u0435\u0439\u0441\u0430', items: items, focusIdx: startIdx, prevController: 'content' });
-  }
-
   // ========== Scroll ==========
 
   function enableWheelScroll(el) {
@@ -954,11 +902,6 @@
       var svgFilter = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>';
 
       _headBtns.push(Lampa.Head.addIcon(svgFilter, function() { showFilterDialog(); }));
-
-      if (typeof Lampa !== 'undefined' && Lampa.Platform && Lampa.Platform.screen('tv')) {
-        var svgScale = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 3h6v6"/><path d="M9 21H3v-6"/><path d="M21 3l-7 7"/><path d="M3 21l7-7"/></svg>';
-        _headBtns.push(Lampa.Head.addIcon(svgScale, function() { showTvScaleDialog(); }));
-      }
     }
   }
 
@@ -981,11 +924,7 @@
     var old = document.querySelector('.mc-bg');
     if (old) old.remove();
     document.body.classList.remove('mc-active');
-    // restoreHead() здесь не вызываем: эта функция дергается и при обычных
-    // внутренних перерисовках страницы (не только при выходе), и раньше
-    // из-за этого затирала оригинальный заголовок ("Главная - TMDB") ДО того,
-    // как customizeHead() успевал его хоть раз сохранить — заголовок пропадал
-    // навсегда по всему приложению. Восстановление заголовка — только в onBack.
+    restoreHead();
   }
 
   function createMcBackground() {
@@ -1002,7 +941,7 @@
 
     removeMcBackground();
 
-    var scroll = new Lampa.Scroll({ mask: true, over: true, nopadding: true });
+    var scroll = new Lampa.Scroll({ mask: true, over: true });
     scroll.body().addClass('mc-page');
 
     var scrollEl = scroll.render(true);
