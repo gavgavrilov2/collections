@@ -981,7 +981,11 @@
     var old = document.querySelector('.mc-bg');
     if (old) old.remove();
     document.body.classList.remove('mc-active');
-    restoreHead();
+    // restoreHead() здесь не вызываем: эта функция дергается и при обычных
+    // внутренних перерисовках страницы (не только при выходе), и раньше
+    // из-за этого затирала оригинальный заголовок ("Главная - TMDB") ДО того,
+    // как customizeHead() успевал его хоть раз сохранить — заголовок пропадал
+    // навсегда по всему приложению. Восстановление заголовка — только в onBack.
   }
 
   function createMcBackground() {
