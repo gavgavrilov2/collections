@@ -998,7 +998,7 @@
 
     removeMcBackground();
 
-    var scroll = new Lampa.Scroll({ mask: true, over: true });
+    var scroll = new Lampa.Scroll({ mask: true, over: true, nopadding: true });
     scroll.body().addClass('mc-page');
 
     var scrollEl = scroll.render(true);
