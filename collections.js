@@ -1765,11 +1765,17 @@
               render.empty().append(scroll.render());
             }
           }
-          if (currentCtrl == 'row' && activeSection >= 0 && sections[activeSection]) {
-            activateSection(activeSection);
-          } else {
-            activateTabs();
-          }
+          setTimeout(function() {
+            if (destroyed || !scroll) return;
+            try { scroll.reset(); } catch(e) {}
+            try {
+              if (currentCtrl == 'row' && activeSection >= 0 && sections[activeSection]) {
+                activateSection(activeSection);
+              } else {
+                activateTabs();
+              }
+            } catch(e) {}
+          }, 300);
         } catch(ex) {}
       }
     }
@@ -1787,6 +1793,9 @@
         var bg = document.querySelector('.mc-bg');
         if (isMc) {
           if (bg && bg.style.display === 'none') showMcOverlay();
+          if (currentCtrl == 'tabs' && scroll && scroll.position && Math.abs(scroll.position()) > 10) {
+            scroll.reset();
+          }
         } else {
           if (bg && bg.style.display !== 'none') hideMcOverlay();
         }
@@ -1809,6 +1818,10 @@
       mcReady = true;
       try { scroll.reset(); } catch(e) {}
       showDebugPanel();
+      setTimeout(function() {
+        if (destroyed || !scroll) return;
+        try { scroll.reset(); } catch(e) {}
+      }, 500);
     }, 300);
   }
 
