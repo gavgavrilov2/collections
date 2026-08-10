@@ -1105,6 +1105,7 @@
       try { scroll.update(contentEl, false); } catch(e) {}
 
       activateTabs();
+      showDebugPanel();
     }
 
     function addSection(title, data, type) {
@@ -1554,12 +1555,80 @@
       } catch(ex) {}
     }
 
+    var _debugInterval = null;
+
+    function showDebugPanel() {
+      var existing = document.getElementById('mc-debug');
+      if (existing) existing.remove();
+      if (_debugInterval) { clearInterval(_debugInterval); _debugInterval = null; }
+
+      var panel = document.createElement('div');
+      panel.id = 'mc-debug';
+      Object.assign(panel.style, {
+        position:'fixed', top:'10px', left:'10px', zIndex:'99999',
+        background:'rgba(0,0,0,0.88)', color:'#0f0', fontFamily:'monospace',
+        fontSize:'13px', padding:'10px 14px', borderRadius:'6px',
+        lineHeight:'1.5', pointerEvents:'none', minWidth:'280px', whiteSpace:'pre'
+      });
+
+      function update() {
+        var fs = getComputedStyle(document.body).fontSize;
+        var cssS = '';
+        try { cssS = getComputedStyle(document.documentElement).getPropertyValue('--mc-s').trim(); } catch(e) {}
+        var drcH = 0;
+        try { if (Lampa.DeviceResCheck && Lampa.DeviceResCheck.mode) drcH = Lampa.DeviceResCheck.mode.height; } catch(e) {}
+        var scEl = null;
+        try { if (scroll && scroll.render) scEl = scroll.render(); } catch(e) {}
+        var scContent = scEl ? scEl.querySelector('.scroll__content') : null;
+        var mcPage = document.querySelector('.mc-page');
+        var tabs = document.querySelector('.mc-tabs');
+        var firstCard = document.querySelector('.mc-card--portrait, .mc-card--landscape');
+        var scrollPos = 0;
+        try { if (scroll && scroll.position) scrollPos = scroll.position(); } catch(e) {}
+        var tv = document.documentElement.classList.contains('tv');
+        var nopad = scEl ? scEl.classList.contains('scroll--nopadding') : false;
+        var mask = scEl ? scEl.classList.contains('scroll--mask') : false;
+        var over = scEl ? scEl.classList.contains('scroll--over') : false;
+
+        panel.innerHTML = [
+          'DEBUG','───────────────',
+          'fontSize:     ' + fs,
+          '--mc-s:       ' + (cssS || 'N/A'),
+          'viewport:     ' + window.innerWidth + 'x' + window.innerHeight,
+          'DRC height:   ' + drcH,
+          '───────────────',
+          'scroll html:  ' + (scEl ? scEl.offsetWidth + 'x' + scEl.offsetHeight : 'N/A'),
+          'scroll pos:   ' + scrollPos,
+          'content pad:  ' + (scContent ? getComputedStyle(scContent).paddingTop : 'N/A'),
+          'mc-page pad:  ' + (mcPage ? getComputedStyle(mcPage).paddingTop : 'N/A'),
+          'content h:    ' + (scContent ? scContent.scrollHeight : 'N/A'),
+          '───────────────',
+          'tabs top:     ' + (tabs ? tabs.offsetTop : 'N/A'),
+          'cards top:    ' + (firstCard && firstCard.closest('.mc-section') ? firstCard.closest('.mc-section').offsetTop : 'N/A'),
+          '───────────────',
+          'tv:           ' + (tv ? 'YES' : 'NO'),
+          'nopadding:    ' + (nopad ? 'YES' : 'NO'),
+          'mask:         ' + (mask ? 'YES' : 'NO'),
+          'over:         ' + (over ? 'YES' : 'NO')
+        ].join('\n');
+      }
+
+      update();
+      document.body.appendChild(panel);
+      _debugInterval = setInterval(function() {
+        if (destroyed) { clearInterval(_debugInterval); _debugInterval = null; var p = document.getElementById('mc-debug'); if (p) p.remove(); return; }
+        update();
+      }, 500);
+    }
+
     function cleanup() {
       if (destroyed) return;
       destroyed = true;
 
       if (_activityListener) { Lampa.Listener.remove('activity', _activityListener); _activityListener = null; }
       if (_bgInterval) { clearInterval(_bgInterval); _bgInterval = null; }
+      if (_debugInterval) { clearInterval(_debugInterval); _debugInterval = null; }
+      var dbg = document.getElementById('mc-debug'); if (dbg) dbg.remove();
 
       try { restoreHead(); } catch(e) {}
       try { removeMcBackground(); } catch(e) {}
@@ -1640,6 +1709,7 @@
       customizeHead();
       mcReady = true;
       try { scroll.update(contentEl, false); } catch(e) {}
+      showDebugPanel();
     }, 300);
   }
 
