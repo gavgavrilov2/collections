@@ -1018,6 +1018,7 @@
     removeMcBackground();
 
     var scroll = new Lampa.Scroll({ mask: true, over: true });
+    scroll.nopadding();
     scroll.body().addClass('mc-page');
 
     var scrollEl = scroll.render(true);
@@ -1101,7 +1102,7 @@
       }
 
       bindTabEvents(tabsEl);
-      try { scroll.update(contentEl, true); } catch(e) {}
+      try { scroll.update(contentEl, false); } catch(e) {}
 
       activateTabs();
     }
@@ -1533,6 +1534,7 @@
     var mcReady = false;
     var destroyed = false;
     var _bgInterval = null;
+    var _activityListener = null;
 
     function hideMcOverlay() {
       try {
@@ -1556,7 +1558,7 @@
       if (destroyed) return;
       destroyed = true;
 
-      Lampa.Listener.remove('activity', onActivityStart);
+      if (_activityListener) { Lampa.Listener.remove('activity', _activityListener); _activityListener = null; }
       if (_bgInterval) { clearInterval(_bgInterval); _bgInterval = null; }
 
       try { restoreHead(); } catch(e) {}
@@ -1604,8 +1606,10 @@
       }
     }
 
-    Lampa.Listener.follow('activity', onActivityStart);
+    if (_activityListener) { Lampa.Listener.remove('activity', _activityListener); }
+    _activityListener = Lampa.Listener.follow('activity', onActivityStart);
 
+    if (_bgInterval) { clearInterval(_bgInterval); }
     _bgInterval = setInterval(function() {
       if (destroyed) { clearInterval(_bgInterval); _bgInterval = null; return; }
       if (!mcReady) return;
@@ -1635,7 +1639,7 @@
       renderPage();
       customizeHead();
       mcReady = true;
-      try { scroll.update(contentEl, true); } catch(e) {}
+      try { scroll.update(contentEl, false); } catch(e) {}
     }, 300);
   }
 

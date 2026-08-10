@@ -9,16 +9,15 @@
    --mc-gap = gap between cards (px, default 28)
    ============================================================ */
 
-/* ---- Remove Lampa Scroll top padding ---- */
-.scroll__content > .mc-page { margin-top: -2.5em; }
-
 /* ---- Page ---- */
 .mc-page {
-  padding: 0 0 80px 0;
+  padding: 1.5em 0 80px 0;
   box-sizing: border-box;
   width: 100%;
   position: relative;
 }
+
+.scroll__body { will-change: auto; }
 
 /* ---- Background ---- */
 .mc-bg {
@@ -257,7 +256,10 @@
 .mc-card--landscape .mc-card__left { font-size: calc(11px * var(--mc-s, 1)); color: #3bd574; margin-top: 4px; }
 
 /* ---- Portrait card ---- */
-.mc-card--portrait { width: var(--mc-cw, 190px); }
+.mc-card--portrait {
+  width: var(--mc-cw, 190px);
+  height: calc(var(--mc-ch, 285px) + 60px);
+}
 .mc-card--portrait .mc-card__poster {
   width: var(--mc-cw, 190px);
   height: var(--mc-ch, 285px);
