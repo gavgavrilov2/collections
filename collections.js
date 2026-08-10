@@ -1452,6 +1452,16 @@
     }
 
     function onActivityStart(e) {
+      if (e.component !== 'mc_main' && e.type === 'start') {
+        try {
+          var bg = document.querySelector('.mc-bg');
+          if (bg) bg.style.display = 'none';
+          document.body.classList.remove('mc-active');
+          restoreHead();
+        } catch(ex) {}
+        return;
+      }
+
       if (e.component !== 'mc_main') return;
 
       if (e.type === 'destroy') {
