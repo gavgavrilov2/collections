@@ -901,13 +901,6 @@
     var menuIcon = document.querySelector('.head__menu-icon');
     if (menuIcon) {
       menuIcon.style.display = 'flex';
-      menuIcon.style.cursor = 'pointer';
-      if (!menuIcon._mcWired) {
-        menuIcon._mcWired = true;
-        menuIcon.addEventListener('click', function() {
-          Lampa.Controller.toggle('menu');
-        });
-      }
     }
 
     if (_headBtns.length === 0) {
