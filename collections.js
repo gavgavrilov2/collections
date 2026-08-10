@@ -889,13 +889,22 @@
     var toHide = document.querySelectorAll(
       '.head__action.open--premium, .head__action.open--feed, .head__action.open--profile, ' +
       '.head__action.open--broadcast, .head__action.notice--icon, .head__action.full--screen, ' +
-      '.head__logo-icon, .head__menu-icon'
+      '.head__logo-icon'
     );
     for (var i = 0; i < toHide.length; i++) {
       if (toHide[i].style.display !== 'none') {
         toHide[i].style.display = 'none';
         _headDefaultsHidden.push(toHide[i]);
       }
+    }
+
+    var menuIcon = document.querySelector('.head__menu-icon');
+    if (menuIcon && !menuIcon._mcWired) {
+      menuIcon._mcWired = true;
+      menuIcon.style.cursor = 'pointer';
+      menuIcon.addEventListener('click', function() {
+        Lampa.Controller.toggle('menu');
+      });
     }
 
     if (_headBtns.length === 0) {
