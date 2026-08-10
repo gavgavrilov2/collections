@@ -4,8 +4,8 @@
    No custom scaling layer — inherits from Lampa's native system.
    ============================================================ */
 
-/* ---- Remove Lampa Scroll top padding ---- */
-.scroll__content > .mc-page { margin-top: -2.5em; }
+/* Верхний паддинг убирается штатной опцией Scroll({nopadding:true}) в JS,
+   а не подгонкой margin здесь — это было ненадёжно на TV (см. bugfix). */
 
 /* ---- Page ---- */
 .mc-page {
