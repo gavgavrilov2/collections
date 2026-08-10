@@ -889,7 +889,7 @@
     var toHide = document.querySelectorAll(
       '.head__action.open--premium, .head__action.open--feed, .head__action.open--profile, ' +
       '.head__action.open--broadcast, .head__action.notice--icon, .head__action.full--screen, ' +
-      '.head__logo-icon, .head__menu-icon'
+      '.head__logo-icon'
     );
     for (var i = 0; i < toHide.length; i++) {
       if (toHide[i].style.display !== 'none') {
@@ -898,11 +898,21 @@
       }
     }
 
+    var menuIcon = document.querySelector('.head__menu-icon');
+    if (menuIcon) {
+      menuIcon.style.display = 'flex';
+      menuIcon.style.cursor = 'pointer';
+      if (!menuIcon._mcWired) {
+        menuIcon._mcWired = true;
+        menuIcon.addEventListener('click', function() {
+          Lampa.Controller.toggle('menu');
+        });
+      }
+    }
+
     if (_headBtns.length === 0) {
-      var svgMenu = '<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><use xlink:href="#sprite-menu"></use></svg>';
       var svgFilter = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>';
 
-      _headBtns.push(Lampa.Head.addIcon(svgMenu, function() { Lampa.Controller.toggle('menu'); }));
       _headBtns.push(Lampa.Head.addIcon(svgFilter, function() { showFilterDialog(); }));
     }
   }
@@ -917,6 +927,8 @@
       _headDefaultsHidden[i].style.display = '';
     }
     _headDefaultsHidden = [];
+    var menuIcon = document.querySelector('.head__menu-icon');
+    if (menuIcon) menuIcon.style.display = '';
     Lampa.Head.title(_headTitleOrig);
   }
 
