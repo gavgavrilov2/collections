@@ -1459,8 +1459,22 @@
         return;
       }
 
+      if (e.type === 'stop') {
+        try {
+          var bg = document.querySelector('.mc-bg');
+          if (bg) bg.style.display = 'none';
+          document.body.classList.remove('mc-active');
+          restoreHead();
+        } catch(ex) {}
+        return;
+      }
+
       if (e.type === 'start' && mcReady) {
         try {
+          var bg = document.querySelector('.mc-bg');
+          if (bg) bg.style.display = '';
+          document.body.classList.add('mc-active');
+          customizeHead();
           if (currentCtrl == 'row' && activeSection >= 0 && sections[activeSection]) {
             activateSection(activeSection);
           } else {
