@@ -1429,12 +1429,32 @@
 
     var mcReady = false;
     var destroyed = false;
+    var _bgInterval = null;
+
+    function hideMcOverlay() {
+      try {
+        var bg = document.querySelector('.mc-bg');
+        if (bg) bg.style.display = 'none';
+        document.body.classList.remove('mc-active');
+        restoreHead();
+      } catch(ex) {}
+    }
+
+    function showMcOverlay() {
+      try {
+        var bg = document.querySelector('.mc-bg');
+        if (bg) bg.style.display = '';
+        document.body.classList.add('mc-active');
+        customizeHead();
+      } catch(ex) {}
+    }
 
     function cleanup() {
       if (destroyed) return;
       destroyed = true;
 
       Lampa.Listener.remove('activity', onActivityStart);
+      if (_bgInterval) { clearInterval(_bgInterval); _bgInterval = null; }
 
       try { restoreHead(); } catch(e) {}
       try { removeMcBackground(); } catch(e) {}
@@ -1452,39 +1472,26 @@
     }
 
     function onActivityStart(e) {
-      if (e.component !== 'mc_main' && e.type === 'start') {
-        try {
-          var bg = document.querySelector('.mc-bg');
-          if (bg) bg.style.display = 'none';
-          document.body.classList.remove('mc-active');
-          restoreHead();
-        } catch(ex) {}
+      if (e.component !== 'mc_main') {
+        if (e.type === 'destroy') return;
         return;
       }
-
-      if (e.component !== 'mc_main') return;
 
       if (e.type === 'destroy') {
         cleanup();
         return;
       }
 
-      if (e.type === 'stop') {
-        try {
-          var bg = document.querySelector('.mc-bg');
-          if (bg) bg.style.display = 'none';
-          document.body.classList.remove('mc-active');
-          restoreHead();
-        } catch(ex) {}
-        return;
-      }
-
       if (e.type === 'start' && mcReady) {
         try {
-          var bg = document.querySelector('.mc-bg');
-          if (bg) bg.style.display = '';
-          document.body.classList.add('mc-active');
-          customizeHead();
+          showMcOverlay();
+          var active = Lampa.Activity.active();
+          if (active && active.activity && active.activity.render) {
+            var render = active.activity.render();
+            if (scroll && scroll.render && render && !render[0].contains(scroll.render()[0])) {
+              render.empty().append(scroll.render());
+            }
+          }
           if (currentCtrl == 'row' && activeSection >= 0 && sections[activeSection]) {
             activateSection(activeSection);
           } else {
@@ -1495,6 +1502,21 @@
     }
 
     Lampa.Listener.follow('activity', onActivityStart);
+
+    _bgInterval = setInterval(function() {
+      if (destroyed) { clearInterval(_bgInterval); _bgInterval = null; return; }
+      if (!mcReady) return;
+      try {
+        var active = Lampa.Activity.active();
+        var isMc = active && active.component === 'mc_main';
+        var bg = document.querySelector('.mc-bg');
+        if (isMc) {
+          if (bg && bg.style.display === 'none') showMcOverlay();
+        } else {
+          if (bg && bg.style.display !== 'none') hideMcOverlay();
+        }
+      } catch(ex) {}
+    }, 500);
 
     Lampa.Activity.push({
       title: PLUGIN_NAME,
