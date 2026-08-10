@@ -4,8 +4,8 @@
    No custom scaling layer — inherits from Lampa's native system.
    ============================================================ */
 
-/* Верхний паддинг убирается штатной опцией Scroll({nopadding:true}) в JS,
-   а не подгонкой margin здесь — это было ненадёжно на TV (см. bugfix). */
+/* ---- Remove Lampa Scroll top padding ---- */
+.scroll__content > .mc-page { margin-top: -2.5em; }
 
 /* ---- Page ---- */
 .mc-page {
@@ -13,17 +13,6 @@
   box-sizing: border-box;
   width: 100%;
   position: relative;
-}
-
-/* ---- TV scale multiplier ----
-   Пользовательский множитель размера (Compact/Normal/Large/XLarge),
-   задаётся из JS через document.documentElement.style.setProperty.
-   Действует только на TV и только внутри плагина — на body.fontSize
-   Lampa (а значит, на остальной интерфейс) не влияет, т.к. это
-   локальный font-size на самом .mc-page, а все размеры внутри — em
-   и наследуются каскадно от него. */
-.mc-root.tv .mc-page {
-  font-size: calc(1em * var(--mc-tv-scale, 1.15));
 }
 
 /* ---- Background ---- */
