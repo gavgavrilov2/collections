@@ -1021,6 +1021,10 @@
     scroll.nopadding();
     scroll.body().addClass('mc-page');
 
+    var _origScrollUpdate = scroll.update.bind(scroll);
+    var _scrollLocked = true;
+    scroll.update = function() {};
+
     var scrollEl = scroll.render(true);
     var vh = window.innerHeight;
     try { if (Lampa.DeviceResCheck && Lampa.DeviceResCheck.mode) { vh = Lampa.DeviceResCheck.mode.height; } } catch(e) {}
@@ -1724,6 +1728,9 @@
       if (destroyed) return;
       destroyed = true;
 
+      _scrollLocked = false;
+      if (scroll && _origScrollUpdate) { scroll.update = _origScrollUpdate; }
+
       if (_activityListener) { Lampa.Listener.remove('activity', _activityListener); _activityListener = null; }
       if (_bgInterval) { clearInterval(_bgInterval); _bgInterval = null; }
       if (_debugInterval) { clearInterval(_debugInterval); _debugInterval = null; }
@@ -1793,9 +1800,6 @@
         var bg = document.querySelector('.mc-bg');
         if (isMc) {
           if (bg && bg.style.display === 'none') showMcOverlay();
-          if (currentCtrl == 'tabs' && scroll && scroll.position && Math.abs(scroll.position()) > 10) {
-            scroll.reset();
-          }
         } else {
           if (bg && bg.style.display !== 'none') hideMcOverlay();
         }
@@ -1821,6 +1825,8 @@
       setTimeout(function() {
         if (destroyed || !scroll) return;
         try { scroll.reset(); } catch(e) {}
+        _scrollLocked = false;
+        scroll.update = _origScrollUpdate;
       }, 500);
     }, 300);
   }
