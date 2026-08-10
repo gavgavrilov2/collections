@@ -23,6 +23,14 @@
     { id: 'fav',     label: 'Избранное',   icon: '\u2764\uFE0F' }
   ];
 
+  var TV_SCALE_KEY = 'mc_tv_scale';
+  var TV_SCALE_PRESETS = {
+    compact: 0.85,
+    normal: 1.0,
+    large: 1.15,
+    xlarge: 1.2
+  };
+
   var MIGRATION_KEY = 'mc_migration_timeline';
   var _collectionsCache = null;
   var _headBtns = [];
@@ -50,7 +58,62 @@
     return tlHash([s, s > 10 ? ':' : '', e, card.original_title || card.original_name].join(''));
   }
 
-  /* Scaling functions removed — CSS uses em, inherits from Lampa body.fontSize */
+  /* Scaling functions — screen-width based, drives CSS variables --mc-s, --mc-cw, etc. */
+
+  function getTvScaleSetting() {
+    try {
+      var v = localStorage.getItem(TV_SCALE_KEY);
+      if (v && TV_SCALE_PRESETS[v] !== undefined) return TV_SCALE_PRESETS[v];
+    } catch(e) {}
+    return TV_SCALE_PRESETS.large;
+  }
+
+  function getScreenScale() {
+    var w = window.innerWidth || 1920;
+    if (typeof Lampa !== 'undefined' && Lampa.Platform && Lampa.Platform.screen('tv')) {
+      var base;
+      if (w <= 1280) base = 1.15;
+      else if (w <= 1920) base = 1.20;
+      else base = 1.15;
+      return base * getTvScaleSetting();
+    }
+    var scale = w / 1920;
+    if (scale < 0.78) scale = 0.78;
+    if (scale > 1.30) scale = 1.30;
+    return scale;
+  }
+
+  function px(v) { return Math.round(v * getScreenScale()) + 'px'; }
+
+  function getTvGap() {
+    if (!(typeof Lampa !== 'undefined' && Lampa.Platform && Lampa.Platform.screen('tv'))) return 14;
+    var s = getTvScaleSetting();
+    var w = window.innerWidth || 1920;
+    var base;
+    if (w <= 1280) base = 20;
+    else if (w <= 1920) base = 28;
+    else base = 36;
+    return Math.round(base * s);
+  }
+
+  function getCardW() {
+    var w = window.innerWidth || 1920;
+    if (typeof Lampa !== 'undefined' && Lampa.Platform && Lampa.Platform.screen('tv')) {
+      var screenS = getScreenScale();
+      var padPerSide = Math.round(36 * screenS);
+      var pad = padPerSide * 2;
+      var gap = getTvGap();
+      var minCard = Math.round(320 * screenS);
+      var count = Math.floor((w - pad) / (minCard + gap));
+      if (count < 4) count = 4;
+      if (count > 8) count = 8;
+      return Math.floor((w - pad - gap * (count - 1)) / count);
+    }
+    return Math.round(190 * getScreenScale());
+  }
+  function getCardH() { return Math.round(getCardW() * 1.5); }
+  function getLandscapeW() { return Math.round(getCardW() * 2); }
+  function getLandscapeH() { return Math.round(getLandscapeW() * 0.56); }
 
   function getCollections() {
     if (_collectionsCache) return _collectionsCache;
@@ -563,6 +626,13 @@
   var _resizeTimer = null;
 
   function updateSizes() {
+    var r = document.documentElement;
+    r.style.setProperty('--mc-cw', getCardW() + 'px');
+    r.style.setProperty('--mc-ch', getCardH() + 'px');
+    r.style.setProperty('--mc-lw', getLandscapeW() + 'px');
+    r.style.setProperty('--mc-lh', getLandscapeH() + 'px');
+    r.style.setProperty('--mc-gap', getTvGap() + 'px');
+    r.style.setProperty('--mc-s', getScreenScale());
     document.documentElement.classList.toggle('mc-root', true);
     document.documentElement.classList.toggle('tv', typeof Lampa !== 'undefined' && Lampa.Platform && Lampa.Platform.screen('tv'));
   }
@@ -873,8 +943,7 @@
 
   function scrollRow(row, dir) {
     if (!row) return;
-    var em = parseFloat(getComputedStyle(document.body).fontSize) || 22;
-    row.scrollBy({ left: dir * 18 * em, behavior: 'smooth' });
+    row.scrollBy({ left: dir * getLandscapeW() * 1.1, behavior: 'smooth' });
   }
 
   // ========== Head Lifecycle ==========
@@ -1002,6 +1071,12 @@
       }
 
       tabsEl.append($('<div class="mc-tab selector" data-create-folder="true"><span class="mc-tab__icon">+</span><span class="mc-tab__label">\u0421\u043E\u0437\u0434\u0430\u0442\u044C \u043F\u0430\u043F\u043A\u0443</span></div>'));
+
+      if (typeof Lampa !== 'undefined' && Lampa.Platform && Lampa.Platform.screen('tv')) {
+        var scaleNames = { compact: '\u041A\u043E\u043C\u043F\u0430\u043A\u0442\u043D\u044B\u0439', normal: '\u041E\u0431\u044B\u0447\u043D\u044B\u0439', large: '\u041A\u0440\u0443\u043F\u043D\u044B\u0439', xlarge: '\u041E\u0447\u0435\u043D\u044C \u043A\u0440\u0443\u043F\u043D\u044B\u0439' };
+        var curScale = localStorage.getItem(TV_SCALE_KEY) || 'large';
+        tabsEl.append($('<div class="mc-filter-btn selector" data-tv-scale="open"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/></svg><span class="mc-filter-btn__label">' + (scaleNames[curScale] || scaleNames.large) + '</span></div>'));
+      }
 
       contentEl.append(tabsEl);
 
@@ -1175,8 +1250,7 @@
         var el = this;
         el.addEventListener('click', function() {
           var dir = parseInt(el.getAttribute('data-dir')) || 0;
-          var em = parseFloat(getComputedStyle(document.body).fontSize) || 22;
-          hscroll.wheel(dir * 18 * em);
+          hscroll.wheel(dir * getLandscapeW() * 1.1);
         });
       });
 
@@ -1242,6 +1316,30 @@
 
       tabsEl.find('[data-create-folder]').each(function() {
         this.addEventListener('hover:enter', function() { showCreateFolderDialog(); });
+      });
+
+      tabsEl.find('[data-tv-scale]').each(function() {
+        this.addEventListener('hover:enter', function() {
+          var scaleNames = { compact: '\u041A\u043E\u043C\u043F\u0430\u043A\u0442\u043D\u044B\u0439', normal: '\u041E\u0431\u044B\u0447\u043D\u044B\u0439', large: '\u041A\u0440\u0443\u043F\u043D\u044B\u0439', xlarge: '\u041E\u0447\u0435\u043D\u044C \u043A\u0440\u0443\u043F\u043D\u044B\u0439' };
+          var cur = localStorage.getItem(TV_SCALE_KEY) || 'large';
+          var keys = ['compact', 'normal', 'large', 'xlarge'];
+          var items = [];
+          for (var i = 0; i < keys.length; i++) {
+            (function(k) {
+              items.push({
+                name: scaleNames[k],
+                checkbox: k === cur,
+                onSelect: function() {
+                  localStorage.setItem(TV_SCALE_KEY, k);
+                  closeMcPopup();
+                  updateSizes();
+                  renderPage();
+                }
+              });
+            })(keys[i]);
+          }
+          showMcPopup({ title: '\u041C\u0430\u0441\u0448\u0442\u0430\u0431', items: items, prevController: 'content' });
+        });
       });
     }
 
