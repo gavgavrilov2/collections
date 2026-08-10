@@ -37,7 +37,7 @@
   var _headDefaultsHidden = [];
   var _headTitleOrig = '';
 
-  /* isTv() — helpers для определения TV-платформы */
+  /* isTV() удалена — используется Platform.screen('tv') или Platform.tv() */
 
   // ========== Timeline Hash Helpers ==========
 
@@ -58,9 +58,7 @@
     return tlHash([s, s > 10 ? ':' : '', e, card.original_title || card.original_name].join(''));
   }
 
-  /* Scaling — em-based, matching Lampa's body.fontSize system.
-     Card dimensions computed in px (for scrollBy), then converted to em for CSS.
-     tvScale multiplier affects card size/count (user preference for density). */
+  /* Scaling functions — screen-width based, drives CSS variables --mc-s, --mc-cw, etc. */
 
   function getTvScaleSetting() {
     try {
@@ -70,15 +68,25 @@
     return TV_SCALE_PRESETS.large;
   }
 
-  function isTv() {
-    return typeof Lampa !== 'undefined' && Lampa.Platform && Lampa.Platform.screen('tv');
+  function getScreenScale() {
+    var w = window.innerWidth || 1920;
+    if (typeof Lampa !== 'undefined' && Lampa.Platform && Lampa.Platform.screen('tv')) {
+      var base;
+      if (w <= 1280) base = 1.15;
+      else if (w <= 1920) base = 1.20;
+      else base = 1.15;
+      return base * getTvScaleSetting();
+    }
+    var scale = w / 1920;
+    if (scale < 0.78) scale = 0.78;
+    if (scale > 1.30) scale = 1.30;
+    return scale;
   }
 
-  function getBodyFontSize() {
-    return parseFloat(getComputedStyle(document.body).fontSize) || 22.8;
-  }
+  function px(v) { return Math.round(v * getScreenScale()) + 'px'; }
 
   function getTvGap() {
+    if (!(typeof Lampa !== 'undefined' && Lampa.Platform && Lampa.Platform.screen('tv'))) return 14;
     var s = getTvScaleSetting();
     var w = window.innerWidth || 1920;
     var base;
@@ -90,22 +98,19 @@
 
   function getCardW() {
     var w = window.innerWidth || 1920;
-    if (isTv()) {
-      var ts = getTvScaleSetting();
-      var pad = 72;
+    if (typeof Lampa !== 'undefined' && Lampa.Platform && Lampa.Platform.screen('tv')) {
+      var screenS = getScreenScale();
+      var padPerSide = Math.round(36 * screenS);
+      var pad = padPerSide * 2;
       var gap = getTvGap();
-      var minCard = Math.round(320 * ts);
+      var minCard = Math.round(320 * screenS);
       var count = Math.floor((w - pad) / (minCard + gap));
       if (count < 4) count = 4;
       if (count > 8) count = 8;
       return Math.floor((w - pad - gap * (count - 1)) / count);
     }
-    var scale = w / 1920;
-    if (scale < 0.78) scale = 0.78;
-    if (scale > 1.30) scale = 1.30;
-    return Math.round(190 * scale);
+    return Math.round(190 * getScreenScale());
   }
-
   function getCardH() { return Math.round(getCardW() * 1.5); }
   function getLandscapeW() { return Math.round(getCardW() * 2); }
   function getLandscapeH() { return Math.round(getLandscapeW() * 0.56); }
@@ -621,15 +626,15 @@
   var _resizeTimer = null;
 
   function updateSizes() {
-    var fs = getBodyFontSize();
     var r = document.documentElement;
-    r.style.setProperty('--mc-cw',  (getCardW() / fs).toFixed(3) + 'em');
-    r.style.setProperty('--mc-ch',  (getCardH() / fs).toFixed(3) + 'em');
-    r.style.setProperty('--mc-lw',  (getLandscapeW() / fs).toFixed(3) + 'em');
-    r.style.setProperty('--mc-lh',  (getLandscapeH() / fs).toFixed(3) + 'em');
-    r.style.setProperty('--mc-gap', (getTvGap() / fs).toFixed(3) + 'em');
-    r.classList.toggle('mc-root', true);
-    r.classList.toggle('tv', isTv());
+    r.style.setProperty('--mc-cw', getCardW() + 'px');
+    r.style.setProperty('--mc-ch', getCardH() + 'px');
+    r.style.setProperty('--mc-lw', getLandscapeW() + 'px');
+    r.style.setProperty('--mc-lh', getLandscapeH() + 'px');
+    r.style.setProperty('--mc-gap', getTvGap() + 'px');
+    r.style.setProperty('--mc-s', getScreenScale());
+    document.documentElement.classList.toggle('mc-root', true);
+    document.documentElement.classList.toggle('tv', typeof Lampa !== 'undefined' && Lampa.Platform && Lampa.Platform.screen('tv'));
   }
 
   function onResize() {
@@ -1067,7 +1072,7 @@
 
       tabsEl.append($('<div class="mc-tab selector" data-create-folder="true"><span class="mc-tab__icon">+</span><span class="mc-tab__label">\u0421\u043E\u0437\u0434\u0430\u0442\u044C \u043F\u0430\u043F\u043A\u0443</span></div>'));
 
-      if (isTv()) {
+      if (typeof Lampa !== 'undefined' && Lampa.Platform && Lampa.Platform.screen('tv')) {
         var scaleNames = { compact: '\u041A\u043E\u043C\u043F\u0430\u043A\u0442\u043D\u044B\u0439', normal: '\u041E\u0431\u044B\u0447\u043D\u044B\u0439', large: '\u041A\u0440\u0443\u043F\u043D\u044B\u0439', xlarge: '\u041E\u0447\u0435\u043D\u044C \u043A\u0440\u0443\u043F\u043D\u044B\u0439' };
         var curScale = localStorage.getItem(TV_SCALE_KEY) || 'large';
         tabsEl.append($('<div class="mc-filter-btn selector" data-tv-scale="open"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/></svg><span class="mc-filter-btn__label">' + (scaleNames[curScale] || scaleNames.large) + '</span></div>'));
