@@ -1046,7 +1046,6 @@
       if (viewingFolderId) {
         renderFolderContent();
         bindTabEvents(tabsEl);
-        try { scroll.update(contentEl, true); } catch(e) {}
         activateTabs();
         return;
       }
@@ -1102,7 +1101,6 @@
       }
 
       bindTabEvents(tabsEl);
-      try { scroll.update(contentEl, false); } catch(e) {}
 
       activateTabs();
       showDebugPanel();
@@ -1809,7 +1807,7 @@
       renderPage();
       customizeHead();
       mcReady = true;
-      try { scroll.update(contentEl, false); } catch(e) {}
+      try { scroll.reset(); } catch(e) {}
       showDebugPanel();
     }, 300);
   }
