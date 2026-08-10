@@ -1566,51 +1566,152 @@
       panel.id = 'mc-debug';
       Object.assign(panel.style, {
         position:'fixed', top:'10px', left:'10px', zIndex:'99999',
-        background:'rgba(0,0,0,0.88)', color:'#0f0', fontFamily:'monospace',
-        fontSize:'13px', padding:'10px 14px', borderRadius:'6px',
-        lineHeight:'1.5', pointerEvents:'none', minWidth:'280px', whiteSpace:'pre'
+        background:'rgba(0,0,0,0.92)', color:'#0f0', fontFamily:'monospace',
+        fontSize:'11px', padding:'8px 10px', borderRadius:'4px',
+        lineHeight:'1.4', pointerEvents:'none', whiteSpace:'pre',
+        maxHeight:'1060px', overflow:'hidden'
       });
 
+      function r(el) { try { return el ? JSON.parse(JSON.stringify(el.getBoundingClientRect())) : null; } catch(e) { return null; } }
+      function g(el, prop) { try { return el ? getComputedStyle(el)[prop] : 'N/A'; } catch(e) { return 'err'; } }
+      function fmt(rect) { if (!rect) return 'N/A'; return 't:'+Math.round(rect.top)+' l:'+Math.round(rect.left)+' w:'+Math.round(rect.width)+' h:'+Math.round(rect.height); }
+      function clamp(v) { return typeof v === 'number' ? Math.round(v * 100) / 100 : v; }
+
       function update() {
-        var fs = getComputedStyle(document.body).fontSize;
-        var cssS = '';
-        try { cssS = getComputedStyle(document.documentElement).getPropertyValue('--mc-s').trim(); } catch(e) {}
-        var drcH = 0;
-        try { if (Lampa.DeviceResCheck && Lampa.DeviceResCheck.mode) drcH = Lampa.DeviceResCheck.mode.height; } catch(e) {}
+        var tv = document.documentElement.classList.contains('tv');
+        var fs = g(document.body, 'fontSize');
+        var dpr = window.devicePixelRatio || 1;
+        var scrW = screen.width, scrH = screen.height;
+
+        var drcH = 0, drcW = 0;
+        try { if (Lampa.DeviceResCheck && Lampa.DeviceResCheck.mode) { drcH = Lampa.DeviceResCheck.mode.height; drcW = Lampa.DeviceResCheck.mode.width; } } catch(e) {}
+
         var scEl = null;
         try { if (scroll && scroll.render) scEl = scroll.render(true); } catch(e) {}
         var scContent = scEl ? scEl.querySelector('.scroll__content') : null;
+        var scBody = scEl ? scEl.querySelector('.scroll__body') : null;
         var mcPage = document.querySelector('.mc-page');
         var tabs = document.querySelector('.mc-tabs');
-        var firstCard = document.querySelector('.mc-card--portrait, .mc-card--landscape');
-        var scrollPos = 0;
-        try { if (scroll && scroll.position) scrollPos = scroll.position(); } catch(e) {}
-        var tv = document.documentElement.classList.contains('tv');
-        var nopad = scEl ? scEl.classList.contains('scroll--nopadding') : false;
-        var mask = scEl ? scEl.classList.contains('scroll--mask') : false;
-        var over = scEl ? scEl.classList.contains('scroll--over') : false;
+        var sections = document.querySelectorAll('.mc-section');
+        var firstPortrait = document.querySelector('.mc-card--portrait');
+        var firstLandscape = document.querySelector('.mc-card--landscape');
+        var head = document.querySelector('.head');
+        var bg = document.querySelector('.mc-bg');
+        var activityRender = null;
+        try { var a = Lampa.Activity.active(); if (a && a.activity && a.activity.render) activityRender = a.activity.render()[0]; } catch(e) {}
 
-        panel.innerHTML = [
-          'DEBUG','───────────────',
+        var scrollPos = 0, vieport = {};
+        try { if (scroll && scroll.position) scrollPos = scroll.position(); } catch(e) {}
+        try { if (scroll && scroll.vieport) vieport = scroll.vieport(); } catch(e) {}
+        var isEnd = false, isFilled = false;
+        try { if (scroll && scroll.isEnd) isEnd = scroll.isEnd(); } catch(e) {}
+        try { if (scroll && scroll.isFilled) isFilled = scroll.isFilled(); } catch(e) {}
+
+        var rSc = r(scEl), rScC = r(scContent), rScB = r(scBody), rMcP = r(mcPage);
+        var rTabs = r(tabs), rHead = r(head), rBg = r(bg), rAct = r(activityRender);
+        var rFirstCard = r(firstPortrait || firstLandscape);
+        var rContentEl = null;
+        try { rContentEl = r(contentEl); } catch(e) {}
+
+        var transform = 'none';
+        try { if (scBody) transform = scBody.style['-webkit-transform'] || scBody.style.transform || 'none'; } catch(e) {}
+
+        var cssVars = {};
+        try {
+          var root = document.documentElement;
+          ['--mc-s','--mc-cw','--mc-ch','--mc-lw','--mc-lh','--mc-gap'].forEach(function(v) {
+            cssVars[v] = getComputedStyle(root).getPropertyValue(v).trim() || 'unset';
+          });
+        } catch(e) {}
+
+        var secInfo = [];
+        for (var i = 0; i < sections.length && i < 8; i++) {
+          var sr = r(sections[i]);
+          secInfo.push('  sec[' + i + '] ' + fmt(sr));
+        }
+
+        var activeComp = 'N/A';
+        try { activeComp = Lampa.Activity.active().component || 'N/A'; } catch(e) {}
+
+        var lines = [
+          '═══ DEBUG v2 ═══',
+          '',
+          '--- LAMPA ---',
           'fontSize:     ' + fs,
-          '--mc-s:       ' + (cssS || 'N/A'),
-          'viewport:     ' + window.innerWidth + 'x' + window.innerHeight,
-          'DRC height:   ' + drcH,
-          '───────────────',
-          'scroll html:  ' + (scEl ? scEl.offsetWidth + 'x' + scEl.offsetHeight : 'N/A'),
-          'scroll pos:   ' + scrollPos,
-          'content pad:  ' + (scContent ? getComputedStyle(scContent).paddingTop : 'N/A'),
-          'mc-page pad:  ' + (mcPage ? getComputedStyle(mcPage).paddingTop : 'N/A'),
-          'content h:    ' + (scContent ? scContent.scrollHeight : 'N/A'),
-          '───────────────',
-          'tabs top:     ' + (tabs ? tabs.offsetTop : 'N/A'),
-          'cards top:    ' + (firstCard && firstCard.closest('.mc-section') ? firstCard.closest('.mc-section').offsetTop : 'N/A'),
-          '───────────────',
+          '--mc-s:       ' + (cssVars['--mc-s'] || 'N/A'),
           'tv:           ' + (tv ? 'YES' : 'NO'),
-          'nopadding:    ' + (nopad ? 'YES' : 'NO'),
-          'mask:         ' + (mask ? 'YES' : 'NO'),
-          'over:         ' + (over ? 'YES' : 'NO')
-        ].join('\n');
+          'dpr:          ' + dpr,
+          'anim:         ' + (Lampa.Storage && Lampa.Storage.field ? Lampa.Storage.field('animation') : '?'),
+          'active:       ' + activeComp,
+          '',
+          '--- SCREEN ---',
+          'viewport:     ' + window.innerWidth + 'x' + window.innerHeight,
+          'screen:       ' + scrW + 'x' + scrH,
+          'DRC:          ' + drcW + 'x' + drcH,
+          '',
+          '--- CSS VARS ---',
+          'mc-cw:        ' + (cssVars['--mc-cw'] || 'N/A'),
+          'mc-ch:        ' + (cssVars['--mc-ch'] || 'N/A'),
+          'mc-lw:        ' + (cssVars['--mc-lw'] || 'N/A'),
+          'mc-lh:        ' + (cssVars['--mc-lh'] || 'N/A'),
+          'mc-gap:       ' + (cssVars['--mc-gap'] || 'N/A'),
+          '',
+          '--- SCROLL CONTAINER ---',
+          'rect:         ' + fmt(rSc),
+          'classes:      ' + (scEl ? scEl.className.replace(/\s+/g,' ') : 'N/A'),
+          'scrollPos:    ' + clamp(scrollPos),
+          'vieport.body: ' + (vieport.body || 'N/A'),
+          'vieport.cont: ' + (vieport.content || 'N/A'),
+          'isEnd:        ' + isEnd,
+          'isFilled:     ' + isFilled,
+          '',
+          '--- SCROLL CONTENT ---',
+          'rect:         ' + fmt(rScC),
+          'padTop:       ' + (scContent ? g(scContent, 'paddingTop') : 'N/A'),
+          'padBot:       ' + (scContent ? g(scContent, 'paddingBottom') : 'N/A'),
+          'scrollH:      ' + (scContent ? scContent.scrollHeight : 'N/A'),
+          '',
+          '--- SCROLL BODY ---',
+          'rect:         ' + fmt(rScB),
+          'offsetH:      ' + (scBody ? scBody.offsetHeight : 'N/A'),
+          'scrollH:      ' + (scBody ? scBody.scrollHeight : 'N/A'),
+          'transform:    ' + transform,
+          'classes:      ' + (scBody ? scBody.className : 'N/A'),
+          '',
+          '--- MC-PAGE ---',
+          'rect:         ' + fmt(rMcP),
+          'padTop:       ' + (mcPage ? g(mcPage, 'paddingTop') : 'N/A'),
+          '',
+          '--- CONTENT EL ---',
+          'rect:         ' + fmt(rContentEl),
+          '',
+          '--- HEAD ---',
+          'rect:         ' + fmt(rHead),
+          'height:       ' + (rHead ? Math.round(rHead.height) : 'N/A'),
+          '',
+          '--- TABS ---',
+          'rect:         ' + fmt(rTabs),
+          'offsetTop:    ' + (tabs ? tabs.offsetTop : 'N/A'),
+          'offsetParent: ' + (tabs && tabs.offsetParent ? tabs.offsetParent.tagName + '.' + tabs.offsetParent.className.split(' ').slice(0,2).join('.') : 'N/A'),
+          '',
+          '--- SECTIONS (' + sections.length + ') ---'];
+        lines = lines.concat(secInfo);
+        lines = lines.concat([
+          '',
+          '--- FIRST CARD ---',
+          'rect:         ' + fmt(rFirstCard),
+          '',
+          '--- ACTIVITY RENDER ---',
+          'rect:         ' + fmt(rAct),
+          '',
+          '--- BACKGROUND ---',
+          'display:      ' + (bg ? g(bg, 'display') : 'N/A'),
+          'rect:         ' + fmt(rBg),
+          '',
+          '═══════════════'
+        ]);
+
+        panel.innerHTML = lines.join('\n');
       }
 
       update();
