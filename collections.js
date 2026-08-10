@@ -1421,9 +1421,38 @@
     }
 
     var mcReady = false;
+    var destroyed = false;
+
+    function cleanup() {
+      if (destroyed) return;
+      destroyed = true;
+
+      Lampa.Listener.remove('activity', onActivityStart);
+
+      try { restoreHead(); } catch(e) {}
+      try { removeMcBackground(); } catch(e) {}
+
+      try { if (scroll && scroll.destroy) scroll.destroy(); } catch(e) {}
+
+      try { $('html').removeClass('mc-root mc-root tv'); } catch(e) {}
+
+      scroll = null;
+      contentEl = null;
+      tabsEl = null;
+      sections = [];
+      activeSection = -1;
+      mcReady = false;
+    }
 
     function onActivityStart(e) {
-      if (e.type == 'start' && e.component == 'mc_main' && mcReady) {
+      if (e.component !== 'mc_main') return;
+
+      if (e.type === 'destroy') {
+        cleanup();
+        return;
+      }
+
+      if (e.type === 'start' && mcReady) {
         try {
           if (currentCtrl == 'row' && activeSection >= 0 && sections[activeSection]) {
             activateSection(activeSection);
@@ -1438,16 +1467,11 @@
 
     Lampa.Activity.push({
       title: PLUGIN_NAME,
-      component: 'mc_main',
-      onBack: function() {
-        Lampa.Listener.remove('activity', onActivityStart);
-        restoreHead();
-        removeMcBackground();
-        Lampa.Controller.toggle('menu');
-      }
+      component: 'mc_main'
     });
 
     setTimeout(function() {
+      if (destroyed) return;
       var active = Lampa.Activity.active();
       if (active && active.activity && active.activity.render) {
         active.activity.render().empty().append(scroll.render());
