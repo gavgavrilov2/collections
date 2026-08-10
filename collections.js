@@ -1006,7 +1006,8 @@
       contentEl.append(tabsEl);
 
       /* Sections */
-      var hasContent = continueWatching.length > 0 || customCols.length > 0;
+      var filteredMovies = getMoviesByCategory(activeTab);
+      var hasContent = continueWatching.length > 0 || customCols.length > 0 || filteredMovies.length > 0;
 
       if (continueWatching.length > 0) {
         addSection('\u041F\u0440\u043E\u0434\u043E\u043B\u0436\u0438\u0442\u044C \u043F\u0440\u043E\u0441\u043C\u043E\u0442\u0440', continueWatching, 'compact');
@@ -1014,6 +1015,10 @@
 
       if (customCols.length > 0) {
         addSection('\u041C\u043E\u0438 \u043F\u0430\u043F\u043A\u0438', customCols, 'folders');
+      }
+
+      if (filteredMovies.length > 0) {
+        addSection('\u0412\u0441\u0435 \u0444\u0438\u043B\u044C\u043C\u044B \u0432 \u043A\u043E\u043B\u043B\u0435\u043A\u0446\u0438\u0438 (' + filteredMovies.length + ')', filteredMovies, 'portrait');
       }
 
       if (!hasContent) {
