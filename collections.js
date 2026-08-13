@@ -1714,6 +1714,20 @@
           'rect:         ' + fmt(rTabs),
           'offsetTop:    ' + (tabs ? tabs.offsetTop : 'N/A'),
           'offsetParent: ' + (tabs && tabs.offsetParent ? tabs.offsetParent.tagName + '.' + tabs.offsetParent.className.split(' ').slice(0,2).join('.') : 'N/A'),
+          'count(.mc-tabs): ' + document.querySelectorAll('.mc-tabs').length,
+          'computedH:    ' + (tabs ? g(tabs, 'height') : 'N/A'),
+          'flexWrap:     ' + (tabs ? g(tabs, 'flexWrap') : 'N/A'),
+          'overflowX:    ' + (tabs ? g(tabs, 'overflowX') : 'N/A'),
+          'tallChildren: ' + (function() {
+            if (!tabs) return 'N/A';
+            var kids = tabs.children;
+            var tall = [];
+            for (var i = 0; i < kids.length; i++) {
+              var kidH = kids[i].getBoundingClientRect().height;
+              if (kidH > 100) tall.push(kids[i].className.split(' ')[0] + ':' + Math.round(kidH));
+            }
+            return tall.length ? tall.join(', ') : 'none';
+          })(),
           '',
           '--- SECTIONS (' + sections.length + ') ---'];
         lines = lines.concat(secInfo);
