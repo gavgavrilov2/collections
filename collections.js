@@ -1353,9 +1353,9 @@
 
       Lampa.Controller.add('content', {
         toggle: function() {
-          Lampa.Controller.collectionSet(tabsEl);
+          Navigator.sense(tabsEl.find('.selector'));
           var activeTabEl = tabsEl[0].querySelector('.mc-tab.active');
-          Lampa.Controller.collectionFocus(activeTabEl || false, tabsEl);
+          if (activeTabEl) Navigator.focus(activeTabEl);
         },
         right: function() { if (Navigator.canmove('right')) Navigator.move('right'); },
         left: function() {
@@ -1404,8 +1404,9 @@
 
       Lampa.Controller.add('content', {
         toggle: function() {
-          Lampa.Controller.collectionSet(section.hscroll.render(true));
-          Lampa.Controller.collectionFocus(section.last || false, section.hscroll.render(true));
+          var items = section.hscroll.render(true).find('.selector');
+          Navigator.sense(items);
+          if (section.last) Navigator.focus(section.last);
         },
         right: function() { if (Navigator.canmove('right')) Navigator.move('right'); },
         left: function() {
@@ -1800,6 +1801,11 @@
         var bg = document.querySelector('.mc-bg');
         if (isMc) {
           if (bg && bg.style.display === 'none') showMcOverlay();
+          if (currentCtrl == 'tabs' && scroll) {
+            var sp = 0;
+            try { sp = scroll.result().position(); } catch(e) {}
+            if (Math.abs(sp) > 10) { scroll.reset(); }
+          }
         } else {
           if (bg && bg.style.display !== 'none') hideMcOverlay();
         }
@@ -1828,6 +1834,12 @@
         _scrollLocked = false;
         scroll.update = _origScrollUpdate;
       }, 500);
+      setTimeout(function() {
+        if (destroyed || !scroll) return;
+        if (currentCtrl == 'tabs') {
+          try { scroll.reset(); } catch(e) {}
+        }
+      }, 1500);
     }, 300);
   }
 
