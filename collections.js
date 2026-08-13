@@ -68,8 +68,28 @@
     return TV_SCALE_PRESETS.large;
   }
 
+  function getResW() {
+    try {
+      if (Lampa.Platform && Lampa.Platform.screen('tv') &&
+          Lampa.DeviceResCheck && Lampa.DeviceResCheck.mode) {
+        return Lampa.DeviceResCheck.mode.width;
+      }
+    } catch(e) {}
+    return window.innerWidth || 1920;
+  }
+
+  function getResH() {
+    try {
+      if (Lampa.Platform && Lampa.Platform.screen('tv') &&
+          Lampa.DeviceResCheck && Lampa.DeviceResCheck.mode) {
+        return Lampa.DeviceResCheck.mode.height;
+      }
+    } catch(e) {}
+    return window.innerHeight || 1080;
+  }
+
   function getScreenScale() {
-    var w = window.innerWidth || 1920;
+    var w = getResW();
     if (typeof Lampa !== 'undefined' && Lampa.Platform && Lampa.Platform.screen('tv')) {
       var base;
       if (w <= 1280) base = 1.15;
@@ -88,7 +108,7 @@
   function getTvGap() {
     if (!(typeof Lampa !== 'undefined' && Lampa.Platform && Lampa.Platform.screen('tv'))) return 14;
     var s = getTvScaleSetting();
-    var w = window.innerWidth || 1920;
+    var w = getResW();
     var base;
     if (w <= 1280) base = 20;
     else if (w <= 1920) base = 28;
@@ -97,7 +117,7 @@
   }
 
   function getCardW() {
-    var w = window.innerWidth || 1920;
+    var w = getResW();
     if (typeof Lampa !== 'undefined' && Lampa.Platform && Lampa.Platform.screen('tv')) {
       var screenS = getScreenScale();
       var padPerSide = Math.round(36 * screenS);
@@ -1026,8 +1046,7 @@
     scroll.update = function() {};
 
     var scrollEl = scroll.render(true);
-    var vh = window.innerHeight;
-    try { if (Lampa.DeviceResCheck && Lampa.DeviceResCheck.mode) { vh = Lampa.DeviceResCheck.mode.height; } } catch(e) {}
+    var vh = getResH();
     scrollEl.style.height = vh + 'px';
 
     var contentEl = $('<div></div>');
