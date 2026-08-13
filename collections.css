@@ -258,7 +258,7 @@
 /* ---- Portrait card ---- */
 .mc-card--portrait {
   width: var(--mc-cw, 190px);
-  height: calc(var(--mc-ch, 285px) + 60px);
+  height: calc(var(--mc-ch, 285px) + (60px * var(--mc-s, 1)));
 }
 .mc-card--portrait .mc-card__poster {
   width: var(--mc-cw, 190px);
